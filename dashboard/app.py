@@ -15,7 +15,7 @@ from pydantic import BaseModel
 import os
 
 # utils imports
-from utils.whisper_predict import transcribe_samples
+from utils.whisper_output import transcribe_samples
 from utils.generate_simple_csv import create_simple_csv
 
 create_simple_csv()
@@ -61,6 +61,7 @@ def evaluate_accents(req: EvaluationRequest):
         "summary": summary,
         "results": results
     }
+
 @app.get("/about")                       
 async def about():
     return FileResponse("static/about.html")
