@@ -61,3 +61,6 @@ def evaluate_accents(req: EvaluationRequest):
         "summary": summary,
         "results": results
     }
+@app.get("/about")                       
+async def about():
+    return FileResponse("static/about.html")
