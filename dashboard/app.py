@@ -15,14 +15,14 @@ from pydantic import BaseModel
 import os
 
 # utils imports
-# from utils.whisper_output import transcribe_samples
+from utils.whisper_output import transcribe_samples
 from utils.generate_simple_csv import create_simple_csv
 
 create_simple_csv()
 
 app = FastAPI()
 
-AUDIO_DIR = "./data/cv_samples/en-au"
+AUDIO_DIR = "./data/cv_samples/"
 CSV_FILE = "./data/simple_transcripts.csv"
 SAMPLE_LIMIT = 5
 

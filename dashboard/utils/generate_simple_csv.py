@@ -8,6 +8,23 @@ from dotenv import load_dotenv
 import re
 from utils.fill_phonemes import update_phoneme_counts
 
+
+ACCENT_MAP = {
+    "united states": "en",
+    "american": "en",
+    "australian": "au",
+    "canadian": "ce",
+    "indian": "in",
+    "south african": "sa",
+}
+
+def normalize_accent(raw):
+    raw = str(raw).lower().strip()
+    for key, code in ACCENT_MAP.items():
+        if key in raw:
+            return code
+    return None
+
 load_dotenv()
 client = OpenAI(api_key=os.getenv("OPENAI_API_KEY"))
 
@@ -17,26 +34,33 @@ def normalize(text):
     text = re.sub(r'\s+', ' ', text)     # collapse multiple spaces
     return text
 
-def create_simple_csv(input_csv="data/transcripts.csv",
+def create_simple_csv(input_csv="data/transcripts.tsv",
                       output_csv="data/simple_transcripts.csv",
-                      audio_dir = "data/cv_samples/en-au",
-                      accent_list=["ae","au","ca","in","sa"]):
+                      audio_dir = "data/cv_samples/",
+                      accent_list=["en","au","ce","in","sa"]):
     
-    full_dataframe = pd.read_csv(input_csv) # C:\Users\Xinyu Su\Documents\GitHub\hackalytics26\dashboard\data\cv_samples\en-au\common_voice_en_618602.mp3
+    full_dataframe = pd.read_csv(input_csv, sep='\t') # C:\Users\Xinyu Su\Documents\GitHub\hackalytics26\dashboard\data\cv_samples\en-au\common_voice_en_618602.mp3
 
-    selected_files = os.listdir(audio_dir)
-    # print(selected_files)
+    file_map = {}
+    for accent in accent_list:
+        for f in os.listdir(audio_dir + accent):
+            file_map[f] = os.path.join(accent, f)
+    print(list(file_map.values()))
 
-    subset = full_dataframe[full_dataframe['path'].isin(selected_files)].copy()
+    full_dataframe["accent_code"] = full_dataframe["accents"].apply(normalize_accent)
+    subset = full_dataframe[
+        full_dataframe["accent_code"].isin(accent_list) &
+        full_dataframe["path"].isin(file_map.keys())
+    ].copy()
     # print(f"SIMPLIFIED: {subset}")
-
+    subset['rel_path'] = subset['path'].map(file_map)
     # Add new columns
     subset['prediction'] = 'some_value'
     subset['wer'] = 0.0
 
 
     for idx, row in subset.iterrows():
-        filename = audio_dir + "/" + row['path']
+        filename = os.path.join(audio_dir, row['rel_path'])
         ground_truth = row['sentence']
         error_sum = 0.0
         predicted_text = ""
