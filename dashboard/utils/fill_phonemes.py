@@ -16,7 +16,7 @@ ACCENT_MAP = {
     "australian english": "au",
     "canadian english": "ce",
     "indian english": "in",
-    "south african": "sa",
+    "south africa": "sa",
 }
 
 #convert "Australian English" to "au"
