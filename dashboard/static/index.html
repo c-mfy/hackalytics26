@@ -85,7 +85,7 @@
 
     /* about popup — pure CSS hover, no JS
        same glass style as modal and report panel */
-    .about-wrap { position:relative; }
+    .about-wrap { position:relative; display:flex; align-items:center; }
     .about-popup {
       position:absolute; top:calc(100% + 14px); right:0; width:290px;
       background: rgba(1,14,31,0.45);
@@ -226,6 +226,20 @@
     .go-btn:hover { background:linear-gradient(135deg, #2d9fff 0%, #1188F7 100%); box-shadow:0 4px 28px rgba(17,136,247,0.6); transform:translateY(-1px); }
     #file-input { display:none; }
 
+    /* analysis section */
+
+    .analysis-box {
+      margin-top:14px; padding:16px 18px;
+      background:rgba(1,14,31,0.6); border:1px solid rgba(17,136,247,0.15); border-radius:12px;
+      font-size:11px; line-height:1.82; color:rgba(235,241,255,0.88);
+      min-height:60px; max-height:180px; overflow-y:auto; display:none;
+    }
+    .analysis-box::-webkit-scrollbar { width:3px; }
+    .analysis-box::-webkit-scrollbar-track { background:transparent; }
+    .analysis-box::-webkit-scrollbar-thumb { background:rgba(17,136,247,0.25); border-radius:2px; }
+    .analysis-box.visible { display:block; }
+    .analysis-cursor { display:inline-block; width:2px; height:11px; background:var(--lblue); margin-left:2px; vertical-align:middle; animation:blink .7s step-end infinite; }
+    @keyframes blink { 0%,100%{opacity:1} 50%{opacity:0} }
     #report-panel::-webkit-scrollbar { width:4px; }
     #report-panel::-webkit-scrollbar-track { background:transparent; }
     #report-panel::-webkit-scrollbar-thumb { background:rgba(17,136,247,0.15); border-radius:2px; }
@@ -279,6 +293,10 @@
   <div style="margin:16px 0 6px;font-size:8px;letter-spacing:.14em;color:rgba(122,204,255,0.4);text-transform:uppercase;">phoneme error rate</div>
   <canvas id="phoneme-chart" style="width:100%;height:190px;display:block;border-radius:8px;"></canvas>
   <div style="margin-top:6px;font-size:7px;letter-spacing:.1em;color:rgba(122,204,255,0.22);text-align:center;text-transform:uppercase;">phoneme</div>
+  <div style="margin-top:5px;font-size:9px;line-height:1.5;color:rgba(235,241,255,0.3);font-style:italic;">Overall WER measures word-level accuracy across all clips. phoneme chart shows error rates for individually tracked phonemes, these are different metrics and may not sum to WER.</div>
+
+  <div class="analysis-box" id="analysis-box"></div>
+
 </div>
 
 <!-- canvas phoneme hover tooltip -->
@@ -343,8 +361,6 @@
 <script src="https://unpkg.com/globe.gl@2.27.2/dist/globe.gl.min.js"></script>
 <script>
 
-// ─── STARFIELD ──────────────────────────────────────────────────────────────
-// drawn on canvas at z-index 0, stars twinkle via sine on opacity
 (function(){
   const cv=document.getElementById('starfield'),cx=cv.getContext('2d');
   let W,H,stars=[];
@@ -354,9 +370,8 @@
       x:Math.random()*W, y:Math.random()*H,
       r:Math.random()*1.1+0.1,
       o:Math.random()*0.6+0.1,
-      sp:Math.random()*0.3+0.04,   // twinkle speed
-      ph:Math.random()*Math.PI*2,  // phase offset so they don't all sync
-      // mostly white, occasional blue/yellow for color variation
+      sp:Math.random()*0.3+0.04,
+      ph:Math.random()*Math.PI*2,
       col:Math.random()>.94?'#7ACCFF':Math.random()>.90?'#FFE19E':'rgba(235,241,255,0.9)'
     };
   }
@@ -364,7 +379,6 @@
   let t=0;
   function draw(){
     cx.clearRect(0,0,W,H);
-    // radial bg so center is slightly lighter than edges
     const g=cx.createRadialGradient(W/2,H*.4,0,W/2,H*.4,Math.hypot(W,H)*.7);
     g.addColorStop(0,'#020d1c');g.addColorStop(0.4,'#010b18');g.addColorStop(1,'#010810');
     cx.fillStyle=g;cx.fillRect(0,0,W,H);
@@ -381,9 +395,6 @@
 })();
 
 
-// ─── WER DATA ───────────────────────────────────────────────────────────────
-// iso3 → accent name + WER %
-// countries not listed here get a deterministic hash-based WER in getW()
 const WER={
   USA:{a:'General American',w:8.1},GBR:{a:'Received Pronunciation',w:12.3},
   AUS:{a:'Australian English',w:14.7},CAN:{a:'Canadian English',w:10.2},
@@ -409,13 +420,11 @@ const WER={
 
 function getW(iso){
   if(WER[iso])return WER[iso].w;
-  // hash the iso string so unknown countries always render the same color
   let h=0;for(const c of(iso||''))h=(h*31+c.charCodeAt(0))&0xffff;
   return 18+(h%36);
 }
 function getA(iso){return WER[iso]?.a||'English (regional)';}
 
-// ─── REAL SAMPLE DATA — 5 accent regions with actual measured WER ─────────────
 const ACCENT_SAMPLES = {
   USA: { code:'en', accent:'American English',      wer:2.23,  lat:38,  lng:-97  },
   AUS: { code:'au', accent:'Australian English',    wer:12.85, lat:-25, lng:133  },
@@ -429,7 +438,6 @@ const SAMPLE_POINTS = Object.entries(ACCENT_SAMPLES).map(([iso,d])=>({
   name: WER[iso]?.a || d.accent
 }));
 
-// 39 ARPAbet phonemes
 const PHONEMES = [
   'AA','AE','AH','AO','AW','AY','B','CH','D','DH',
   'EH','ER','EY','F','G','HH','IH','IY','JH','K',
@@ -437,8 +445,6 @@ const PHONEMES = [
   'T','TH','UH','UW','V','W','Y','Z','ZH'
 ];
 
-// per-phoneme error rate per accent (error/total from phoneme_counter.csv)
-// en and ce had zero errors in all tested clips — real data
 const PHONEME_ERR = {
   en: [0,0,0,0,0,0,0,0,0,0, 0,0,0,0,0,0,0,0,0,0, 0,0,0,0,0,0,0,0,0,0, 0,0,0,0,0,0,0,0,0],
   au: [0,0,0.029,0,0,0,0,0,0,0.091, 0,0,0,0,0,0,0,0,0,0, 0,0,0,0,0,0,0,0,0,0, 0,0,0,0,0,0,0,0,0],
@@ -449,12 +455,6 @@ const PHONEME_ERR = {
 
 
 
-// ─── WER COLOR SCALE ────────────────────────────────────────────────────────
-// maps WER % → rgba string for globe polygon fills
-// matches the legend bar gradient in CSS:
-//   0–28% : white → light blue
-//   28–62%: light blue → primary blue
-//   62–100%: primary blue → dark navy
 function wCol(w,al=0.82){
   const t=Math.min(w/55,1);
   let r,g,b;
@@ -472,12 +472,8 @@ function wCol(w,al=0.82){
 }
 
 
-// ─── GLOBE ──────────────────────────────────────────────────────────────────
-// globe.gl wraps three.js — geojson from D3 gallery
-// polygonAltitude varies by WER so high-error countries lift off the surface
 let globe;
 function buildGlobe(geo){
-  // normalize iso field — geojson sources use different property names
   geo.features=geo.features.map(f=>({
     ...f,properties:{
       ...f.properties,
@@ -510,7 +506,6 @@ function buildGlobe(geo){
     .polygonStrokeColor(()=>'rgba(17,136,247,0.12)')
     .polygonLabel(null)
     .onPolygonHover(onHover)
-    // ── blue gradient markers on the 5 real-data countries ──
     .htmlElementsData(SAMPLE_POINTS)
     .htmlLat(d=>d.lat)
     .htmlLng(d=>d.lng)
@@ -520,7 +515,6 @@ function buildGlobe(geo){
       el.className='sample-marker';
       const t=Math.min(d.wer/20,1);
       const size=Math.round(60+t*40);
-      // en/ce = light pastel yellow; au/in/sa = saturated amber yellow
       const isLight=(d.code==='en'||d.code==='ce');
       const cInner=isLight?'255,240,180':'255,200,50';
       const cMid=isLight?'255,230,150':'255,180,20';
@@ -532,6 +526,37 @@ function buildGlobe(geo){
         ?'drop-shadow(0 0 8px rgba(255,240,180,0.45))'
         :'drop-shadow(0 0 10px rgba(255,200,50,0.65))';
       el.addEventListener('click',()=>openAccentReport(d.accent,d.wer,d.code));
+      el.addEventListener('mouseover',e=>{
+        const wer=d.wer;
+        const col=wCol(wer,1);
+        const bias=wer<7
+          ?{l:'low bias',  bg:'rgba(122,204,255,.12)',c:'#7ACCFF'}
+          :wer<14
+            ?{l:'med bias', bg:'rgba(255,225,158,.1)', c:'#FFE19E'}
+            :{l:'high bias',bg:'rgba(17,136,247,.12)', c:'#1188F7'};
+        document.getElementById('tc').textContent=d.name||d.accent;
+        document.getElementById('ta').textContent=`${(100-wer).toFixed(2)}% accuracy · real data`;
+        document.getElementById('tw').textContent=wer.toFixed(2)+'%';
+        document.getElementById('tw').style.color=col;
+        document.getElementById('tf').style.width=Math.min(wer/20*100,100)+'%';
+        document.getElementById('tf').style.background=col;
+        const badge=document.getElementById('tb');
+        badge.textContent=bias.l;badge.style.background=bias.bg;badge.style.color=bias.c;
+        const tip=document.getElementById('tip');
+        tip.style.display='block';
+        tip.style.left=(e.clientX+20)+'px';
+        tip.style.top=(e.clientY-12)+'px';
+      });
+      el.addEventListener('mousemove',e=>{
+        const tip=document.getElementById('tip');
+        const cw=tip.offsetWidth,ch=tip.offsetHeight;
+        const x=e.clientX+20,y=e.clientY-12;
+        tip.style.left=(x+cw>innerWidth?e.clientX-cw-20:x)+'px';
+        tip.style.top=(y+ch>innerHeight?e.clientY-ch-12:y)+'px';
+      });
+      el.addEventListener('mouseout',()=>{
+        document.getElementById('tip').style.display='none';
+      });
       return el;
     })
     .polygonsTransitionDuration(350)
@@ -546,7 +571,6 @@ function buildGlobe(geo){
   ctrl.minDistance=150; ctrl.maxDistance=800;
   ctrl.minPolarAngle=0.3; ctrl.maxPolarAngle=Math.PI-0.3;
 
-  // pause auto-rotate on any interaction, resume after 2.2s idle
   const el=document.getElementById('globeViz');
   let timer;
   function pauseRotate(){ctrl.autoRotate=false;clearTimeout(timer);timer=setTimeout(()=>ctrl.autoRotate=true,2200);}
@@ -560,7 +584,6 @@ function buildGlobe(geo){
   document.getElementById('loading').style.display='none';
 }
 
-// move camera closer/further along its current look direction
 function zoomBy(delta){
   if(!globe)return;
   const cam=globe.camera(),ctrl=globe.controls();
@@ -569,13 +592,10 @@ function zoomBy(delta){
 }
 
 
-// ─── TOOLTIP ────────────────────────────────────────────────────────────────
 const tip=document.getElementById('tip');
 function onHover(poly){
   if(!poly){tip.style.display='none';return;}
   const{name,accent,isReal,code}=poly.properties;
-  // for real-data countries always pull WER from source truth, not polygon property
-  // (geojson ISO lookup can silently fail leaving the dummy value)
   let wer=poly.properties.wer;
   if(isReal && code){
     const sample=Object.values(ACCENT_SAMPLES).find(s=>s.code===code);
@@ -599,7 +619,6 @@ function onHover(poly){
   badge.textContent=bias.l;badge.style.background=bias.bg;badge.style.color=bias.c;
   tip.style.display='block';
 }
-// keep tooltip near cursor, flip sides if it would overflow viewport
 document.addEventListener('mousemove',e=>{
   if(tip.style.display!=='block')return;
   const cw=tip.offsetWidth,ch=tip.offsetHeight;
@@ -613,14 +632,11 @@ fetch('https://raw.githubusercontent.com/holtzy/D3-graph-gallery/master/DATA/wor
   .catch(()=>{document.getElementById('loading').textContent='failed to load map';});
 
 
-// ─── MODAL ──────────────────────────────────────────────────────────────────
 function openModal(){document.getElementById('modal').classList.add('open');}
 function closeModal(){document.getElementById('modal').classList.remove('open');}
-// click outside the card to dismiss
 document.getElementById('modal').addEventListener('click',e=>{
   if(e.target===e.currentTarget)closeModal();
 });
-// update dropzone UI after a file is picked
 function onFile(e){
   const f=e.target?.files?.[0];if(!f)return;
   document.getElementById('dz').innerHTML=`
@@ -628,7 +644,6 @@ function onFile(e){
     <div class="dz-text"><span>${f.name}</span></div>
     <div class="dz-hint">${(f.size/1024).toFixed(1)} KB · ready to analyze</div>`;
 }
-// drag-and-drop support
 const dz=document.getElementById('dz');
 dz.addEventListener('dragover',e=>{e.preventDefault();dz.classList.add('over');});
 dz.addEventListener('dragleave',()=>dz.classList.remove('over'));
@@ -639,9 +654,6 @@ dz.addEventListener('drop',e=>{
 });
 
 
-// ─── ANALYZE FLOW ────────────────────────────────────────────────────────────
-// analyze() → runParsingAnimation() → showReport()
-// globe spins faster as % climbs, bursts at 100%, then slides right
 
 function analyze(){
   closeModal();
@@ -662,13 +674,11 @@ function runParsingAnimation(){
       pct+=Math.floor(Math.random()*7)+2;
       if(pct>100)pct=100;
 
-      // ramp spin speed 0.2 → 6 proportional to parse progress
       if(globe)globe.controls().autoRotateSpeed=0.2+(pct/100)*5.8;
 
       if(pct>=100){
         clearInterval(iv);
         text.textContent='PARSING...100%';
-        // burst: max speed + CSS scale-up
         if(globe)globe.controls().autoRotateSpeed=12;
         wrapper.classList.add('parsing-burst');
         setTimeout(()=>{
@@ -686,6 +696,9 @@ function runParsingAnimation(){
 }
 
 function openAccentReport(accent, wer, code){
+  _currentAnalysisAccent = {accent, wer, code};
+  const box=document.getElementById('analysis-box');
+  if(box){box.classList.remove('visible');box.textContent='';}
   const acc=(100-wer).toFixed(1);
   document.getElementById('report-title-text').textContent=accent.toUpperCase();
   document.getElementById('rpt-wer').textContent=wer.toFixed(2)+'%';
@@ -693,7 +706,7 @@ function openAccentReport(accent, wer, code){
     `Whisper achieved ${acc}% accuracy on ${accent} audio clips.`;
   document.getElementById('globe-wrapper').classList.add('report-mode');
   document.getElementById('report-panel').classList.add('open');
-  requestAnimationFrame(()=>drawPhonemeChart(code));
+  requestAnimationFrame(()=>{ drawPhonemeChart(code); generateAnalysis(); });
 }
 
 function showReport(){
@@ -706,8 +719,7 @@ function closeReport(){
   document.getElementById('upload-trigger').style.display='';
 }
 
-// ─── PHONEME CHART — dual layer: accent vs American baseline ────────────────
-let _chartPeaks=[]; // stores peak positions for hover detection
+let _chartPeaks=[];
 
 function strokeWave(cx,pts,baseY,strokeStyle,lineW,fillStyle){
   cx.save();
@@ -740,12 +752,11 @@ function drawPhonemeChart(code){
   const baseY=pad.top+cH;
 
   const accent=PHONEME_ERR[code]||PHONEME_ERR.en;
-  const baseline=PHONEME_ERR.en; // all zeros from real data
+  const baseline=PHONEME_ERR.en;
   const n=PHONEMES.length;
-  // if en is all zeros, scale off accent only; add a small floor so chart renders
-  const maxErr=Math.max(...accent,0.06)*1.15;
+  const enWERfloor=0.0223;
+  const maxErr=Math.max(...accent,enWERfloor,0.06)*1.15;
 
-  // grid lines
   [0,.05,.1,.2,.3,.4].forEach(v=>{
     if(v>maxErr)return;
     const y=pad.top+cH*(1-v/maxErr);
@@ -761,17 +772,20 @@ function drawPhonemeChart(code){
     return errs.map((e,i)=>({x:pad.left+(i/(n-1))*cW, y:pad.top+cH*(1-(e/maxErr))}));
   }
 
-  const baselinePts=makePts(baseline); // flat baseline at bottom (all zeros)
+  const baselinePts=makePts(baseline);
   const accentPts=makePts(accent);
 
-  // ── American baseline — white dashed flat line at zero ──
+  const enWER = 0.0223;
+  const baselineY = pad.top + cH * (1 - enWER / maxErr);
   cx.save();
   cx.setLineDash([5,4]);
-  cx.strokeStyle='rgba(235,241,255,0.65)';cx.lineWidth=1.5;
-  cx.beginPath();cx.moveTo(baselinePts[0].x,baseY);cx.lineTo(baselinePts[n-1].x,baseY);cx.stroke();
+  cx.strokeStyle='rgba(235,241,255,0.72)';cx.lineWidth=1.5;
+  cx.beginPath();cx.moveTo(pad.left, baselineY);cx.lineTo(pad.left+cW, baselineY);cx.stroke();
   cx.setLineDash([]);cx.restore();
+  cx.fillStyle='rgba(235,241,255,0.5)';
+  cx.font="6px 'Microsoft Sans Serif',sans-serif";cx.textAlign='left';
+  cx.fillText('2.23%',pad.left+2,baselineY-3);
 
-  // ── accent wave — blue gradient fill + bright stroke ──
   const fillAccent=cx.createLinearGradient(0,pad.top,0,baseY);
   fillAccent.addColorStop(0,'rgba(17,136,247,0.28)');
   fillAccent.addColorStop(1,'rgba(17,136,247,0.02)');
@@ -781,7 +795,6 @@ function drawPhonemeChart(code){
   strokeAccent.addColorStop(1,'#7ACCFF');
   strokeWave(cx,accentPts,baseY,strokeAccent,2,fillAccent);
 
-  // dots on non-zero accent phonemes + store for hover
   _chartPeaks=[];
   accentPts.forEach((pt,i)=>{
     if(accent[i]<=0)return;
@@ -791,51 +804,49 @@ function drawPhonemeChart(code){
     cx.fillStyle='#FFE19E';cx.globalAlpha=0.95;
     cx.beginPath();cx.arc(pt.x,pt.y,2.5,0,Math.PI*2);cx.fill();cx.globalAlpha=1;
     _chartPeaks.push({
-      x:rect.left+pt.x, y:rect.top+pt.y,
+      cx:pt.x, cy:pt.y,
       phoneme:PHONEMES[i],
       rate:(accent[i]*100).toFixed(1)+'%'
     });
   });
 
-  // x-axis phoneme labels every 3rd
   cx.fillStyle='rgba(255,255,255,0.5)';
   cx.font="6.5px 'Microsoft Sans Serif',sans-serif";cx.textAlign='center';
   accentPts.forEach((pt,i)=>{if(i%3!==0)return;cx.fillText(PHONEMES[i],pt.x,baseY+14);});
 
-  // y-axis label
   cx.save();cx.translate(11,pad.top+cH/2);cx.rotate(-Math.PI/2);
   cx.fillStyle='rgba(255,255,255,0.35)';
   cx.font="7px 'Microsoft Sans Serif',sans-serif";cx.textAlign='center';
   cx.fillText('ERROR RATE',0,0);cx.restore();
 
-  // legend — top right
   const lx=pad.left+cW-2, ly=pad.top+8;
-  // american line swatch
   cx.save();cx.setLineDash([4,3]);
   cx.strokeStyle='rgba(235,241,255,0.7)';cx.lineWidth=1.5;
   cx.beginPath();cx.moveTo(lx-60,ly+2);cx.lineTo(lx-46,ly+2);cx.stroke();
   cx.setLineDash([]);cx.restore();
   cx.fillStyle='rgba(255,255,255,0.75)';
   cx.font="6.5px 'Microsoft Sans Serif',sans-serif";cx.textAlign='left';
-  cx.fillText('american',lx-43,ly+5);
-  // accent swatch
+  cx.fillText('american WER',lx-43,ly+5);
   cx.strokeStyle='#1188F7';cx.lineWidth=2;
   cx.beginPath();cx.moveTo(lx-60,ly+14);cx.lineTo(lx-46,ly+14);cx.stroke();
   cx.fillStyle='rgba(122,204,255,0.9)';
   cx.fillText('this accent',lx-43,ly+17);
 }
 
-// ── phoneme hover tooltip on chart peaks ──
 document.addEventListener('mousemove',function(e){
   const tip=document.getElementById('ph-tip');
-  if(!_chartPeaks.length){return;}
+  if(!_chartPeaks.length){tip.style.display='none';return;}
+  const canvas=document.getElementById('phoneme-chart');
+  if(!canvas){tip.style.display='none';return;}
+  const r=canvas.getBoundingClientRect();
   let found=null;
   for(const pk of _chartPeaks){
-    const dx=e.clientX-pk.x, dy=e.clientY-pk.y;
+    const px=r.left+pk.cx, py=r.top+pk.cy;
+    const dx=e.clientX-px, dy=e.clientY-py;
     if(Math.sqrt(dx*dx+dy*dy)<14){found=pk;break;}
   }
   if(found){
-    tip.textContent=found.phoneme+' · '+found.rate+' error';
+    tip.textContent=found.phoneme+' · '+found.rate+' error rate';
     tip.style.display='block';
     tip.style.left=(e.clientX+12)+'px';
     tip.style.top=(e.clientY-28)+'px';
@@ -843,6 +854,101 @@ document.addEventListener('mousemove',function(e){
     tip.style.display='none';
   }
 });
+
+const GROQ_API_KEY = 'add api key here';
+
+let _currentAnalysisAccent = null;
+
+async function generateAnalysis(){
+  const box = document.getElementById('analysis-box');
+  if(!_currentAnalysisAccent) return;
+
+  const {accent, wer, code} = _currentAnalysisAccent;
+  const errs = PHONEME_ERR[code] || PHONEME_ERR.en;
+
+  const peaks = PHONEMES
+    .map((p,i)=>({phoneme:p, rate:errs[i]}))
+    .filter(p=>p.rate>0)
+    .sort((a,b)=>b.rate-a.rate)
+    .slice(0,5);
+
+  const peakStr = peaks.length
+    ? peaks.map(p=>`${p.phoneme} (${(p.rate*100).toFixed(1)}%)`).join(', ')
+    : 'no phoneme errors detected';
+
+  const prompt = `You are an expert in speech recognition bias and linguistics. Analyze this ASR bias report for SpeechWrite, a tool that helps entertainment companies evaluate STT accuracy across accents.
+
+Accent: ${accent}
+Word Error Rate (WER): ${wer.toFixed(2)}% (American English baseline is 0%)
+Top phoneme errors: ${peakStr}
+
+Write exactly a short paragraph consisting of 3 parts. No headers or labels.
+
+Part 1: What this WER means practically for speakers of this accent using this technology.
+Part 2: Which phonemes are most affected and the specific linguistic reason why, reference the phoneme errors listed above.
+Part 3: Real-world impact on entertainment accessibility, subtitles, streaming, gaming voice chat, voice assistants — and who is most harmed by this bias.`;
+
+  box.textContent = '';
+  box.classList.add('visible');
+
+  if(GROQ_API_KEY === 'YOUR_GROQ_KEY_HERE'){
+    box.textContent = 'Add your free Groq API key: go to console.groq.com → Create API Key, then paste it into the GROQ_API_KEY constant in the source.';
+    return;
+  }
+
+  try {
+    const res = await fetch('https://api.groq.com/openai/v1/chat/completions', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${GROQ_API_KEY}`
+      },
+      body: JSON.stringify({
+        model: 'llama-3.3-70b-versatile',
+        max_tokens: 200,
+        temperature: 0.7,
+        stream: true,
+        messages: [{ role: 'user', content: prompt }]
+      })
+    });
+    if(!res.ok){
+      const err = await res.json().catch(()=>({}));
+      throw new Error(err?.error?.message || 'API error '+res.status);
+    }
+
+    const reader = res.body.getReader();
+    const decoder = new TextDecoder();
+    let text = '';
+    box.innerHTML = '<span class="analysis-cursor"></span>';
+
+    while(true){
+      const {done, value} = await reader.read();
+      if(done) break;
+      const chunk = decoder.decode(value);
+      const lines = chunk.split('\n');
+      for(const line of lines){
+        if(!line.startsWith('data: ')) continue;
+        const data = line.slice(6).trim();
+        if(!data || data === '[DONE]') continue;
+        try{
+          const j = JSON.parse(data);
+          const part = j?.choices?.[0]?.delta?.content;
+          if(part){
+            text += part;
+            box.innerHTML = text + '<span class="analysis-cursor"></span>';
+            box.scrollIntoView({behavior:'smooth', block:'nearest'});
+          }
+        } catch(e){}
+      }
+    }
+    box.innerHTML = text;
+
+  } catch(err) {
+    box.textContent = `Error: ${err.message}. Check your Groq API key at console.groq.com.`;
+    console.error(err);
+  }
+
+}
 
 document.addEventListener('keydown',e=>{
   if(e.key==='Escape'){closeModal();closeReport();}
