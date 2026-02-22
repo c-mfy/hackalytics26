@@ -1,502 +1,269 @@
-<!-- 
-    main HTML page 
-    includes dashboard chars/tables/display
-    loads JS and CSS
--->
-
 <!DOCTYPE html>
 <html lang="en">
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>speechwrite — speech right with speech write</title>
-  <link rel="preconnect" href="https://fonts.googleapis.com" />
-  <link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=DM+Mono:ital,wght@0,300;0,400;0,500;1,300&family=Italiana&display=swap" rel="stylesheet" />
+  <title>speechwrite</title>
   <style>
-    *, *::before, *::after { margin: 0; padding: 0; box-sizing: border-box; }
+    *, *::before, *::after { margin:0; padding:0; box-sizing:border-box; }
 
+    /* brand colors — all from Color_Palette.png
+       blues are primary, yellow is accent, xlight is body text */
     :root {
-      --sky: #03060f;
-      --accent: #4af0c4;
-      --accent3: #ffd166;
-      --text: #c8d8e8;
-      --dim: rgba(200,216,232,0.32);
-      --mono: 'DM Mono', monospace;
-      --display: 'Bebas Neue', cursive;
-      --serif: 'Italiana', serif;
+      --navy:    #010e1f;   /* page bg */
+      --navy2:   #012347;   /* darker navy for gradients */
+      --blue:    #1188F7;   /* primary blue */
+      --blue2:   #0A64B8;   /* darker blue used in button gradients */
+      --lblue:   #7ACCFF;   /* light blue — accents, hover, glow */
+      --lcyan:   #75FFF8;   /* lightest cyan, rarely used */
+      --xlight:  #EBF1FF;   /* near-white text */
+      --yellow:  #FFE19E;   /* accent yellow */
+      --dim:     rgba(122,204,255,0.35);  /* muted label / icon color */
+      --border:  rgba(17,136,247,0.18);   /* glass card borders */
+      --glass:   rgba(1,14,31,0.72);      /* kept for reference */
+      --font:    'Microsoft Sans Serif','Segoe UI',-apple-system,BlinkMacSystemFont,sans-serif;
     }
 
-    html, body {
-      width: 100%; height: 100%;
-      overflow: hidden;
-      background: var(--sky);
-      color: var(--text);
-      font-family: var(--mono);
-      cursor: default;
-    }
+    html,body { width:100%; height:100%; overflow:hidden; background:var(--navy); color:var(--xlight); font-family:var(--font); cursor:default; }
 
-    /* ── STARFIELD ─────────────────────────────────────── */
-    #starfield {
-      position: fixed;
-      inset: 0;
-      z-index: 0;
-    }
+    /* canvas sits at z-index 0, everything else layers on top */
+    #starfield { position:fixed; inset:0; z-index:0; }
 
-    /* ── GHOST BRAND TEXT (sits behind globe visually) ── */
-    #brand-layer {
-      position: fixed;
-      inset: 0;
-      z-index: 1;
-      display: flex;
-      flex-direction: column;
-      align-items: center;
-      justify-content: center;
-      pointer-events: none;
-      user-select: none;
-    }
+    /* decorative spinning ring around the globe — pure CSS, no JS */
+    .orbit-ring { position:fixed; inset:0; z-index:1; display:flex; align-items:center; justify-content:center; pointer-events:none; }
+    .orbit-svg { width:min(80vw,80vh); height:min(80vw,80vh); animation:spin 32s linear infinite; }
+    @keyframes spin { to { transform:rotate(360deg); } }
 
-    .brand-name {
-      font-family: var(--display);
-      font-size: clamp(72px, 14vw, 210px);
-      letter-spacing: 0.03em;
-      color: transparent;
-      -webkit-text-stroke: 1px rgba(74,240,196,0.09);
-      line-height: 0.86;
-      white-space: nowrap;
-      animation: breathe 8s ease-in-out infinite;
-    }
-
-    .brand-slogan {
-      font-family: var(--serif);
-      font-size: clamp(10px, 1.1vw, 17px);
-      letter-spacing: 0.3em;
-      color: rgba(74,240,196,0.11);
-      margin-top: 12px;
-      text-transform: lowercase;
-      font-style: italic;
-      animation: breathe 8s ease-in-out infinite 2s;
-    }
-
-    @keyframes breathe {
-      0%,100% { opacity: 0.5; }
-      50%      { opacity: 1; }
-    }
-
-    /* ── DECORATIVE ORBIT RING ─────────────────────────── */
-    .orbit-ring {
-      position: fixed;
-      inset: 0;
-      z-index: 1;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      pointer-events: none;
-    }
-
-    .orbit-svg {
-      width: min(80vw, 80vh);
-      height: min(80vw, 80vh);
-      animation: spin 28s linear infinite;
-    }
-
-    @keyframes spin { to { transform: rotate(360deg); } }
-
-    /* ── GLOBE CONTAINER ───────────────────────────────── */
+    /* globe-wrapper shifts right when report opens (report-mode class)
+       parsing-burst class scales it up at 100% parse — see runParsingAnimation() */
     #globe-wrapper {
-      position: fixed;
-      inset: 0;
-      z-index: 2;
+      position:fixed; inset:0; z-index:2;
+      transition: transform 0.85s cubic-bezier(0.4,0,0.2,1), scale 0.5s cubic-bezier(0.34,1.56,0.64,1);
+      transform-origin: center center;
     }
+    #globe-wrapper.report-mode { transform:translateX(22%); }
+    #globe-wrapper.parsing-burst { scale: 1.08; }
 
-    /* ── HOVER TOOLTIP ─────────────────────────────────── */
-    #tip {
-      position: fixed;
-      z-index: 30;
-      display: none;
-      pointer-events: none;
-      min-width: 200px;
-    }
-
+    /* tooltip — shown on country hover, positioned by mousemove listener */
+    #tip { position:fixed; z-index:30; display:none; pointer-events:none; min-width:210px; }
     .tip-inner {
-      background: rgba(3, 8, 18, 0.95);
-      border: 1px solid rgba(74,240,196,0.2);
-      border-radius: 5px;
-      padding: 15px 19px;
-      backdrop-filter: blur(16px);
-      box-shadow: 0 8px 50px rgba(0,0,0,0.75), 0 0 20px rgba(74,240,196,0.06);
+      background: rgba(1,14,31,0.88);
+      border: 1px solid var(--border);
+      border-radius: 10px; padding:16px 20px;
+      backdrop-filter: blur(24px);
+      box-shadow: 0 8px 48px rgba(0,0,0,.7), 0 0 0 1px rgba(17,136,247,0.06), inset 0 1px 0 rgba(235,241,255,0.06);
+    }
+    .tip-country { font-size:16px; font-weight:600; letter-spacing:.02em; color:#fff; margin-bottom:2px; }
+    .tip-accent  { font-size:9px; letter-spacing:.18em; text-transform:uppercase; color:var(--dim); margin-bottom:12px; }
+    .tip-wer     { font-size:30px; font-weight:700; line-height:1; margin-bottom:2px; }
+    .tip-wer-label { font-size:9px; letter-spacing:.18em; text-transform:uppercase; color:var(--dim); margin-bottom:9px; }
+    .tip-bar  { width:100%; height:3px; background:rgba(255,255,255,.07); border-radius:2px; }
+    .tip-fill { height:100%; border-radius:2px; transition:width .3s; background:var(--blue); }
+    .tip-badge { display:inline-block; margin-top:9px; padding:3px 10px; border-radius:20px; font-size:9px; letter-spacing:.14em; text-transform:uppercase; }
+
+    /* #ui is pointer-events:none so it doesn't block globe interaction
+       children re-enable pointer-events individually where needed */
+    #ui { position:fixed; inset:0; z-index:10; pointer-events:none; }
+    .nav { position:absolute; top:0; left:0; right:0; display:flex; align-items:center; justify-content:space-between; padding:22px 36px; pointer-events:all; }
+
+    .logo-wrap { display:flex; align-items:center; gap:10px; text-decoration:none; cursor:pointer; }
+    .logo-icon {
+      width:32px; height:32px; border-radius:8px;
+      background: linear-gradient(135deg, rgba(17,136,247,0.25), rgba(117,255,248,0.1));
+      border: 1px solid rgba(17,136,247,0.3);
+      display:flex; align-items:center; justify-content:center;
+      font-size:14px; color:var(--lblue);
+      box-shadow: 0 0 16px rgba(17,136,247,0.15);
+    }
+    .logo-name { font-size:16px; font-weight:600; letter-spacing:.02em; }
+    .logo-name .w1 { color:var(--xlight); }
+    /* gradient text on the "write" part of the logo */
+    .logo-name .w2 {
+      background: linear-gradient(90deg, var(--blue) 0%, var(--lblue) 100%);
+      -webkit-background-clip:text; -webkit-text-fill-color:transparent;
     }
 
-    .tip-country {
-      font-family: var(--display);
-      font-size: 21px;
-      letter-spacing: 0.05em;
-      color: #fff;
-      margin-bottom: 3px;
+    .nav-links { display:flex; align-items:center; gap:32px; }
+    .nav-link { font-size:12px; letter-spacing:.06em; color:var(--dim); text-decoration:none; cursor:pointer; transition:color .2s; }
+    .nav-link:hover { color:var(--xlight); }
+
+    /* about popup — pure CSS hover, no JS
+       same glass style as modal and report panel */
+    .about-wrap { position:relative; }
+    .about-popup {
+      position:absolute; top:calc(100% + 14px); right:0; width:290px;
+      background: rgba(1,14,31,0.45);
+      border: 1px solid rgba(17,136,247,0.22);
+      border-radius: 14px; padding:18px 20px;
+      backdrop-filter: blur(40px) saturate(1.4);
+      box-shadow: 0 20px 60px rgba(0,0,0,.45), inset 0 1px 0 rgba(235,241,255,0.09), 0 0 0 1px rgba(17,136,247,0.06);
+      opacity:0; pointer-events:none; transform:translateY(8px);
+      transition:opacity .18s ease, transform .18s ease; z-index:100;
+      text-align:right;
+      font-family:'Microsoft Sans Serif','Segoe UI',sans-serif;
     }
-
-    .tip-accent {
-      font-size: 9px;
-      letter-spacing: 0.18em;
-      text-transform: uppercase;
-      color: var(--dim);
-      margin-bottom: 12px;
+    /* arrow notch pointing at the "about" nav item */
+    .about-popup::before {
+      content:''; position:absolute; top:-5px; right:14px; width:9px; height:9px;
+      background:rgba(1,14,31,0.6);
+      border-left:1px solid rgba(17,136,247,0.22); border-top:1px solid rgba(17,136,247,0.22);
+      transform:rotate(45deg);
     }
+    .about-wrap:hover .about-popup { opacity:1; pointer-events:all; transform:translateY(0); }
+    .about-popup-title { font-size:10px; font-weight:600; letter-spacing:.1em; color:var(--lblue); margin-bottom:8px; text-transform:uppercase; }
+    .about-popup-text { font-size:11px; line-height:1.72; color:rgba(235,241,255,0.7); }
 
-    .tip-wer {
-      font-family: var(--display);
-      font-size: 34px;
-      line-height: 1;
-      margin-bottom: 2px;
-    }
-
-    .tip-wer-label {
-      font-size: 9px;
-      letter-spacing: 0.18em;
-      text-transform: uppercase;
-      color: var(--dim);
-      margin-bottom: 9px;
-    }
-
-    .tip-bar { width: 100%; height: 3px; background: rgba(255,255,255,0.07); border-radius: 2px; }
-    .tip-fill { height: 100%; border-radius: 2px; transition: width .3s; }
-
-    .tip-badge {
-      display: inline-block;
-      margin-top: 9px;
-      padding: 3px 8px;
-      border-radius: 2px;
-      font-size: 9px;
-      letter-spacing: 0.16em;
-      text-transform: uppercase;
-    }
-
-    /* ── TOP NAV ───────────────────────────────────────── */
-    #ui {
-      position: fixed;
-      inset: 0;
-      z-index: 10;
-      pointer-events: none;
-    }
-
-    .nav {
-      position: absolute;
-      top: 0; left: 0; right: 0;
-      display: flex;
-      align-items: center;
-      justify-content: space-between;
-      padding: 20px 32px;
-      pointer-events: all;
-    }
-
-    .logo-wrap { line-height: 1; }
-
-    .logo-name {
-      font-family: var(--display);
-      font-size: 24px;
-      letter-spacing: 0.04em;
-      color: var(--accent);
-      text-shadow: 0 0 24px rgba(74,240,196,0.42);
-      text-transform: lowercase;
-    }
-
-    .logo-slogan {
-      font-family: var(--mono);
-      font-size: 8.5px;
-      letter-spacing: 0.16em;
-      color: var(--dim);
-      margin-top: 1px;
-      font-style: italic;
-    }
-
-    .nav-links {
-      display: flex;
-      align-items: center;
-      gap: 24px;
-    }
-
-    .nav-link {
-      font-size: 9.5px;
-      letter-spacing: 0.16em;
-      color: var(--dim);
-      text-decoration: none;
-      text-transform: lowercase;
-      cursor: pointer;
-      transition: color .2s;
-    }
-
-    .nav-link:hover { color: var(--accent); }
-
-    .upload-btn {
-      display: flex;
-      align-items: center;
-      gap: 7px;
-      padding: 9px 20px;
-      background: transparent;
-      border: 1px solid rgba(74,240,196,0.35);
-      border-radius: 2px;
-      color: var(--accent);
-      font-family: var(--mono);
-      font-size: 9.5px;
-      letter-spacing: 0.16em;
-      text-transform: lowercase;
-      cursor: pointer;
-      transition: all .22s;
-      position: relative;
-      overflow: hidden;
-    }
-
-    .upload-btn::after {
-      content: '';
-      position: absolute;
-      inset: 0;
-      background: var(--accent);
-      transform: scaleX(0);
-      transform-origin: left;
-      transition: transform .22s ease;
-      z-index: -1;
-    }
-
-    .upload-btn:hover {
-      color: #03060f;
-      border-color: var(--accent);
-      box-shadow: 0 0 24px rgba(74,240,196,0.25);
-    }
-
-    .upload-btn:hover::after { transform: scaleX(1); }
-    .upload-btn svg { width: 12px; height: 12px; fill: currentColor; }
-
-    /* ── ZOOM CONTROLS ─────────────────────────────────── */
-    .zoom-controls {
-      position: absolute;
-      right: 32px;
-      top: 50%;
-      transform: translateY(-50%);
-      display: flex;
-      flex-direction: column;
-      gap: 6px;
-      pointer-events: all;
-    }
-
+    .zoom-controls { position:absolute; right:36px; top:50%; transform:translateY(-50%); display:flex; flex-direction:column; gap:6px; pointer-events:all; }
     .zoom-btn {
-      width: 32px; height: 32px;
-      background: rgba(3,8,18,0.8);
-      border: 1px solid rgba(74,240,196,0.2);
-      border-radius: 3px;
-      color: var(--dim);
-      font-size: 18px;
-      display: grid;
-      place-items: center;
-      cursor: pointer;
-      transition: all .2s;
-      line-height: 1;
-      font-family: var(--mono);
+      width:32px; height:32px;
+      background: rgba(1,14,31,0.7); border:1px solid var(--border); border-radius:6px;
+      color:var(--dim); font-size:18px; display:grid; place-items:center;
+      cursor:pointer; transition:all .2s; line-height:1;
+      backdrop-filter:blur(12px);
+    }
+    .zoom-btn:hover { border-color:var(--blue); color:var(--lblue); background:rgba(17,136,247,0.1); box-shadow:0 0 16px rgba(17,136,247,0.15); }
+
+    /* gradient fade at bottom so the legend doesn't hard-clip on the globe */
+    .bottom-bar { position:absolute; bottom:0; left:0; right:0; display:flex; align-items:flex-end; justify-content:flex-end; padding:24px 36px; pointer-events:none; background:linear-gradient(to top, rgba(1,9,20,.8) 0%, transparent 100%); }
+
+    /* "UPLOAD" text — triggers the modal, hidden while parsing/report is open */
+    .upload-trigger {
+      position:absolute; bottom:28px; left:50%; transform:translateX(-50%);
+      font-size:10px; letter-spacing:.32em; text-transform:uppercase;
+      color:rgba(122,204,255,0.4); cursor:pointer; pointer-events:all; transition:all .2s;
+    }
+    .upload-trigger:hover { color:rgba(122,204,255,0.8); letter-spacing:.36em; }
+
+    /* WER heatmap key — gradient matches wCol() color stops in JS:
+       white (0%) → light blue → primary blue → dark navy (50%+) */
+    .legend { display:flex; flex-direction:column; align-items:flex-end; gap:5px; }
+    .legend-label { font-size:9px; letter-spacing:.18em; text-transform:lowercase; color:var(--dim); }
+    .legend-bar { width:140px; height:4px; border-radius:2px; background:linear-gradient(to right, #ffffff 0%, #7ACCFF 35%, #1188F7 65%, #012347 100%); }
+    .legend-ends { display:flex; justify-content:space-between; width:140px; }
+    .legend-end { font-size:8px; letter-spacing:.1em; color:var(--dim); }
+
+    /* shown while globe.gl fetches the geojson, hidden on buildGlobe() */
+    #loading { position:fixed; bottom:72px; left:50%; transform:translateX(-50%); z-index:15; font-size:9px; letter-spacing:.28em; text-transform:lowercase; color:var(--dim); animation:breathe 1.4s ease-in-out infinite; }
+    @keyframes breathe { 0%,100%{opacity:.4} 50%{opacity:1} }
+
+    /* parsing overlay — sits above globe during fake analysis animation
+       pointer-events:none so user can't interact while it runs */
+    #parsing-overlay { position:fixed; inset:0; z-index:20; display:none; align-items:center; justify-content:center; pointer-events:none; }
+    #parsing-overlay.active { display:flex; }
+    .parsing-text {
+      font-size:11px; letter-spacing:.3em; text-transform:uppercase;
+      color:rgba(235,241,255,0.65);
+      background:rgba(1,14,31,0.6); padding:10px 22px; border-radius:20px;
+      backdrop-filter:blur(20px); border:1px solid rgba(17,136,247,0.2);
+      box-shadow: 0 0 30px rgba(17,136,247,0.1);
     }
 
-    .zoom-btn:hover {
-      border-color: var(--accent);
-      color: var(--accent);
-      background: rgba(74,240,196,0.07);
+    /* report panel — floats on the left, globe shifts right behind it
+       slides in from the left (translateX -8px → 0) with a slight spring
+       same glass style as modal for visual consistency */
+    #report-panel {
+      position:fixed; left:3%; top:50%; z-index:50;
+      transform: translateY(-50%) translateX(-8px);
+      opacity:0; pointer-events:none;
+      transition: opacity 0.35s ease, transform 0.35s cubic-bezier(0.34,1.3,0.64,1);
+      width:360px; max-width:44vw; max-height:82vh;
+      background: rgba(1,14,31,0.45);
+      border:1px solid rgba(17,136,247,0.22); border-radius:20px;
+      padding:32px 32px 28px;
+      backdrop-filter:blur(40px) saturate(1.4);
+      box-shadow: 0 24px 80px rgba(0,0,0,.45), inset 0 1px 0 rgba(235,241,255,0.09), 0 0 0 1px rgba(17,136,247,0.06);
+      overflow-y:auto;
     }
-
-    /* ── BOTTOM BAR ────────────────────────────────────── */
-    .bottom-bar {
-      position: absolute;
-      bottom: 0; left: 0; right: 0;
-      display: flex;
-      align-items: flex-end;
-      justify-content: space-between;
-      padding: 20px 32px;
-      pointer-events: none;
-      background: linear-gradient(to top, rgba(3,6,15,0.72) 0%, transparent 100%);
+    #report-panel.open { opacity:1; pointer-events:all; transform: translateY(-50%) translateX(0); }
+    .report-close { position:absolute; top:14px; right:16px; background:none; border:none; color:rgba(122,204,255,0.4); font-size:16px; cursor:pointer; transition:color .2s; }
+    .report-close:hover { color:var(--lblue); }
+    .report-title {
+      font-size:26px; font-weight:700; letter-spacing:.02em;
+      background: linear-gradient(135deg, #fff 0%, var(--lblue) 100%);
+      -webkit-background-clip:text; -webkit-text-fill-color:transparent;
+      margin-bottom:16px; line-height:1;
     }
+    .report-wer-row { font-size:12px; color:var(--xlight); margin-bottom:6px; }
+    .report-wer-row span { color:var(--blue); font-weight:600; }
+    .report-accuracy { font-size:11px; color:rgba(235,241,255,0.5); margin-bottom:20px; }
+    /* placeholder circle — replace with a real canvas chart when ready */
+    .report-chart { width:130px; height:130px; background:rgba(17,136,247,0.06); border:1px solid var(--border); border-radius:50%; margin:0 auto 20px; box-shadow:0 0 32px rgba(17,136,247,0.08); }
+    .report-body { font-size:11px; line-height:1.8; color:rgba(235,241,255,0.55); }
+    .report-body p { margin-bottom:12px; }
 
-    .stat-row { display: flex; flex-direction: column; gap: 5px; }
-
-    .chip {
-      display: flex;
-      align-items: center;
-      gap: 7px;
-      font-size: 9px;
-      letter-spacing: 0.13em;
-      text-transform: lowercase;
-      color: var(--dim);
-    }
-
-    .chip-dot { width: 5px; height: 5px; border-radius: 50%; flex-shrink: 0; }
-
-    .legend { display: flex; flex-direction: column; align-items: flex-end; gap: 5px; }
-    .legend-label { font-size: 9px; letter-spacing: .18em; text-transform: lowercase; color: var(--dim); }
-    .legend-bar { width: 140px; height: 4px; border-radius: 2px; background: linear-gradient(to right, #4af0c4, #ffd166, #ff6b6b); }
-    .legend-ends { display: flex; justify-content: space-between; width: 140px; }
-    .legend-end { font-size: 8.5px; letter-spacing: .1em; color: var(--dim); }
-
-    /* ── LOADING ───────────────────────────────────────── */
-    #loading {
-      position: fixed;
-      bottom: 72px;
-      left: 50%;
-      transform: translateX(-50%);
-      z-index: 15;
-      font-size: 9px;
-      letter-spacing: 0.28em;
-      text-transform: lowercase;
-      color: var(--dim);
-      animation: breathe 1.4s ease-in-out infinite;
-    }
-
-    /* ── UPLOAD MODAL ──────────────────────────────────── */
-    #modal {
-      display: none;
-      position: fixed;
-      inset: 0;
-      z-index: 50;
-      background: rgba(3,6,15,0.88);
-      backdrop-filter: blur(12px);
-      align-items: center;
-      justify-content: center;
-    }
-
-    #modal.open { display: flex; }
-
+    /* upload modal — no dark backdrop so the globe shows through
+       glass: low opacity bg + heavy blur, matches about popup + report panel */
+    #modal { display:none; position:fixed; inset:0; z-index:50; align-items:center; justify-content:center; }
+    #modal.open { display:flex; }
     .modal-box {
-      background: #05090f;
-      border: 1px solid rgba(74,240,196,0.16);
-      border-radius: 6px;
-      padding: 40px;
-      width: 490px;
-      max-width: 92vw;
-      position: relative;
-      animation: pop .28s ease;
+      background: rgba(1,14,31,0.45);
+      border:1px solid rgba(17,136,247,0.22); border-radius:20px; padding:32px 32px 28px;
+      width:380px; max-width:92vw;
+      position:relative; animation:pop .28s ease;
+      backdrop-filter:blur(40px) saturate(1.4);
+      box-shadow: 0 24px 80px rgba(0,0,0,.45), inset 0 1px 0 rgba(235,241,255,0.09), 0 0 0 1px rgba(17,136,247,0.06);
     }
-
-    @keyframes pop {
-      from { opacity: 0; transform: translateY(18px) scale(0.98); }
-      to   { opacity: 1; transform: translateY(0) scale(1); }
-    }
-
-    .modal-x {
-      position: absolute;
-      top: 14px; right: 16px;
-      background: none;
-      border: none;
-      color: var(--dim);
-      font-size: 18px;
-      cursor: pointer;
-      transition: color .2s;
-    }
-    .modal-x:hover { color: var(--accent); }
-
-    .modal-title {
-      font-family: var(--display);
-      font-size: 28px;
-      letter-spacing: 0.08em;
-      color: var(--accent);
-      text-transform: lowercase;
-      margin-bottom: 3px;
-    }
-
-    .modal-sub {
-      font-size: 9px;
-      letter-spacing: 0.14em;
-      color: var(--dim);
-      text-transform: lowercase;
-      margin-bottom: 28px;
-    }
-
+    @keyframes pop { from{opacity:0;transform:translateY(14px) scale(.97)} to{opacity:1;transform:translateY(0) scale(1)} }
+    .modal-x { position:absolute; top:14px; right:16px; background:none; border:none; color:rgba(122,204,255,0.4); font-size:16px; cursor:pointer; transition:color .2s; }
+    .modal-x:hover { color:var(--lblue); }
+    /* dropzone — border brightens + glows on drag-over */
     .dz {
-      border: 1px dashed rgba(74,240,196,0.25);
-      border-radius: 4px;
-      padding: 36px 20px;
-      text-align: center;
-      cursor: pointer;
-      transition: all .22s;
-      margin-bottom: 20px;
+      border:1px dashed rgba(17,136,247,0.3); border-radius:12px;
+      padding:40px 20px; text-align:center; cursor:pointer;
+      transition:all .22s; margin-bottom:16px;
+      background: rgba(17,136,247,0.04);
     }
-
-    .dz:hover, .dz.over {
-      border-color: var(--accent);
-      background: rgba(74,240,196,0.04);
-    }
-
-    .dz svg { width: 32px; height: 32px; fill: rgba(74,240,196,0.35); margin-bottom: 10px; }
-    .dz-text { font-size: 11px; letter-spacing: .1em; color: var(--dim); }
-    .dz-text span { color: var(--accent); }
-    .dz-hint { font-size: 8.5px; letter-spacing: .12em; color: var(--dim); margin-top: 5px; }
-
-    .opts { display: grid; grid-template-columns: 1fr 1fr; gap: 9px; margin-bottom: 20px; }
-
-    .opt {
-      border: 1px solid rgba(74,240,196,0.11);
-      border-radius: 4px;
-      padding: 13px 15px;
-      cursor: pointer;
-      transition: all .2s;
-    }
-
-    .opt:hover, .opt.sel {
-      border-color: rgba(74,240,196,0.42);
-      background: rgba(74,240,196,0.05);
-    }
-
-    .opt-label { font-size: 8.5px; text-transform: lowercase; letter-spacing: .18em; color: var(--dim); margin-bottom: 3px; }
-    .opt-val { font-family: var(--display); font-size: 15px; letter-spacing: .04em; color: var(--text); }
-
+    .dz:hover,.dz.over { border-color:var(--blue); background:rgba(17,136,247,0.08); box-shadow:0 0 28px rgba(17,136,247,0.12); }
+    .dz svg { width:28px; height:28px; fill:rgba(17,136,247,0.5); margin-bottom:10px; }
+    .dz-text { font-size:12px; color:rgba(235,241,255,0.55); }
+    .dz-text span { color:var(--lblue); }
+    .dz-hint { font-size:9px; color:rgba(122,204,255,0.25); margin-top:5px; letter-spacing:.1em; }
     .go-btn {
-      width: 100%;
-      padding: 14px;
-      background: var(--accent);
-      color: #03060f;
-      border: none;
-      border-radius: 2px;
-      font-family: var(--display);
-      font-size: 19px;
-      letter-spacing: 0.18em;
-      text-transform: lowercase;
-      cursor: pointer;
-      transition: all .22s;
+      width:100%; padding:13px;
+      background: linear-gradient(135deg, var(--blue) 0%, #0A64B8 0%);
+      color:#fff; border:none; border-radius:10px;
+      font-size:13px; font-weight:600; letter-spacing:.06em;
+      cursor:pointer; transition:all .22s;
+      box-shadow: 0 4px 20px rgba(17,136,247,0.4);
+      font-family:var(--font);
     }
+    .go-btn:hover { background:linear-gradient(135deg, #2d9fff 0%, #1188F7 100%); box-shadow:0 4px 28px rgba(17,136,247,0.6); transform:translateY(-1px); }
+    #file-input { display:none; }
 
-    .go-btn:hover {
-      background: #7af8d8;
-      box-shadow: 0 0 32px rgba(74,240,196,0.38);
-    }
-
-    #file-input { display: none; }
+    #report-panel::-webkit-scrollbar { width:4px; }
+    #report-panel::-webkit-scrollbar-track { background:transparent; }
+    #report-panel::-webkit-scrollbar-thumb { background:rgba(17,136,247,0.15); border-radius:2px; }
   </style>
 </head>
 <body>
 
-<!-- 1 · starfield -->
+<!-- starfield background — drawn by canvas animation in JS -->
 <canvas id="starfield"></canvas>
 
-<!-- 2 · ghost brand (behind globe) -->
-<div id="brand-layer">
-  <div class="brand-name">speechwrite</div>
-  <div class="brand-slogan">speech right with speech write</div>
-</div>
-
-<!-- 3 · orbit decoration -->
+<!-- decorative orbit ring, spins via CSS animation -->
 <div class="orbit-ring">
   <svg class="orbit-svg" viewBox="0 0 400 400" fill="none">
-    <circle cx="200" cy="200" r="197" stroke="rgba(74,240,196,0.055)" stroke-width="1"/>
-    <circle cx="200" cy="200" r="197" stroke="url(#og)" stroke-width="1.2"
-            stroke-dasharray="24 580"/>
-    <circle cx="200" cy="3" r="3.5" fill="#4af0c4" opacity="0.75"/>
-    <circle cx="200" cy="3" r="7"   fill="none" stroke="#4af0c4" stroke-width="0.6" opacity="0.3"/>
+    <!-- subtle base ring -->
+    <circle cx="200" cy="200" r="197" stroke="rgba(17,136,247,0.06)" stroke-width="1"/>
+    <!-- moving gradient dash segment -->
+    <circle cx="200" cy="200" r="197" stroke="url(#og)" stroke-width="1.2" stroke-dasharray="22 580"/>
+    <!-- leading dot at the top of the ring -->
+    <circle cx="200" cy="3" r="3.5" fill="#1188F7" opacity="0.7"/>
+    <circle cx="200" cy="3" r="7" fill="none" stroke="#1188F7" stroke-width="0.6" opacity="0.25"/>
     <defs>
       <linearGradient id="og" x1="200" y1="0" x2="200" y2="400" gradientUnits="userSpaceOnUse">
-        <stop offset="0%"   stop-color="#4af0c4" stop-opacity=".55"/>
-        <stop offset="45%"  stop-color="#4af0c4" stop-opacity="0"/>
-        <stop offset="100%" stop-color="#4af0c4" stop-opacity=".08"/>
+        <stop offset="0%" stop-color="#1188F7" stop-opacity=".5"/>
+        <stop offset="45%" stop-color="#1188F7" stop-opacity="0"/>
+        <stop offset="100%" stop-color="#7ACCFF" stop-opacity=".06"/>
       </linearGradient>
     </defs>
   </svg>
 </div>
 
-<!-- 4 · globe -->
+<!-- globe lives here. report-mode class shifts it right via CSS transform -->
 <div id="globe-wrapper"><div id="globeViz"></div></div>
 
-<!-- 5 · tooltip -->
+<!-- hover tooltip, follows the cursor via mousemove listener -->
 <div id="tip">
   <div class="tip-inner">
     <div class="tip-country" id="tc">—</div>
@@ -508,396 +275,370 @@
   </div>
 </div>
 
-<!-- 6 · ui overlay -->
+<!-- parsing overlay — shown during fake analysis, percentage updated by JS -->
+<div id="parsing-overlay">
+  <div class="parsing-text" id="parsing-text">PARSING...</div>
+</div>
+
+<!-- report panel — slides in from left after parsing finishes -->
+<div id="report-panel">
+  <button class="report-close" onclick="closeReport()">✕</button>
+  <div class="report-title">REPORT</div>
+  <div class="report-wer-row">WER Score: <span id="rpt-wer">15%</span></div>
+  <div class="report-accuracy" id="rpt-accuracy">Your model has an accuracy rate of 85% for the North American English Accent.</div>
+  <!-- placeholder circle — swap with canvas chart when ready -->
+  <div class="report-chart"></div>
+  <div class="report-body" id="rpt-body">
+    <p>"Lorem ipsum dolor sit amet, consectetur adipiscing elit, sed do eiusmod tempor incididunt ut labore et dolore magna aliqua. Ut enim ad minim veniam, quis nostrud exercitation ullamco laboris nisi ut aliquip ex ea commodo consequat."</p>
+    <p>"Lorem ipsum dolor sit amet, consectetur adipiscing elit, sed do eiusmod tempor incididunt ut labore et dolore magna aliqua. Ut enim ad minim veniam, quis nostrud exercitation ullamco laboris nisi ut aliquip ex ea commodo consequat. Duis aute irure dolor in reprehenderit in voluptate velit esse cillum dolore eu fugiat nulla pariatur."</p>
+  </div>
+</div>
+
+<!-- full-screen UI overlay — pointer-events:none, children opt back in -->
 <div id="ui">
   <nav class="nav">
-    <div class="logo-wrap">
-      <div class="logo-name">speechwrite</div>
-      <div class="logo-slogan">speech right with speech write</div>
-    </div>
+    <a class="logo-wrap" href="/">
+      <div class="logo-icon">✦</div>
+      <div class="logo-name"><span class="w1">speech</span><span class="w2">write</span></div>
+    </a>
     <div class="nav-links">
-      <a class="nav-link" href="research">research</a>
+      <a class="nav-link" href="/research">research</a>
+      <!-- about is hover-only popup, no page link -->
+      <div class="about-wrap">
         <span class="nav-link">about</span>
-      <button class="upload-btn" onclick="openModal()">
-        <svg viewBox="0 0 24 24"><path d="M9 16h6v-6h4l-7-7-7 7h4v6zm-4 2h14v2H5v-2z"/></svg>
-        upload audio
-      </button>
+        <div class="about-popup">
+          <div class="about-popup-title">about speechwrite</div>
+          <div class="about-popup-text">speechwrite measures how fairly automatic speech recognition systems treat speakers of different English accents — making global disparities visible and quantifiable. our research reveals that speakers from non-Western backgrounds face error rates 2–5× higher, directly impacting access to healthcare, legal, and assistive technologies.</div>
+        </div>
+      </div>
     </div>
   </nav>
 
-  <!-- zoom buttons -->
   <div class="zoom-controls">
-    <button class="zoom-btn" id="zin"  title="zoom in">+</button>
-    <button class="zoom-btn" id="zout" title="zoom out">−</button>
+    <button class="zoom-btn" id="zin">+</button>
+    <button class="zoom-btn" id="zout">−</button>
   </div>
 
+  <!-- WER color legend, bottom-right -->
   <div class="bottom-bar">
-    <div class="stat-row">
-      <div class="chip">
-        <div class="chip-dot" style="background:var(--accent)"></div>
-        52 accent regions · 96 countries mapped
-      </div>
-      <div class="chip">
-        <div class="chip-dot" style="background:var(--accent3)"></div>
-        drag to rotate · scroll or ± to zoom · hover to inspect
-      </div>
-    </div>
     <div class="legend">
       <div class="legend-label">word error rate</div>
       <div class="legend-bar"></div>
       <div class="legend-ends">
-        <span class="legend-end">0% low</span>
-        <span class="legend-end">high 60%</span>
+        <span class="legend-end">0%</span>
+        <span class="legend-end">50%</span>
       </div>
     </div>
   </div>
+
+  <div class="upload-trigger" id="upload-trigger" onclick="openModal()">UPLOAD</div>
 </div>
 
-<!-- 7 · upload modal -->
+<!-- upload modal — dropzone + analyze button only, no model/language pickers -->
 <div id="modal">
   <div class="modal-box">
     <button class="modal-x" onclick="closeModal()">✕</button>
-    <div class="modal-title">analyze audio</div>
-    <div class="modal-sub">upload a recording — we compute wer against a reference transcript</div>
-
     <div class="dz" id="dz" onclick="document.getElementById('file-input').click()">
       <svg viewBox="0 0 24 24"><path d="M9 16h6v-6h4l-7-7-7 7h4v6zm-4 2h14v2H5v-2z"/></svg>
-      <div class="dz-text">drop audio here or <span>browse</span></div>
+      <div class="dz-text">drop audio here or <span>choose file</span></div>
       <div class="dz-hint">.mp3 · .wav · .m4a · .ogg · .flac</div>
     </div>
     <input type="file" id="file-input" accept="audio/*" onchange="onFile(event)" />
-
-    <div class="opts">
-      <div class="opt sel" data-g="model"><div class="opt-label">stt model</div><div class="opt-val">Whisper</div></div>
-      <div class="opt"     data-g="model"><div class="opt-label">stt model</div><div class="opt-val">Google</div></div>
-      <div class="opt sel" data-g="lang" ><div class="opt-label">language</div><div class="opt-val">English</div></div>
-      <div class="opt"     data-g="lang" ><div class="opt-label">language</div><div class="opt-val">Auto-detect</div></div>
-    </div>
-
-    <button class="go-btn" onclick="analyze()">analyze speech →</button>
+    <button class="go-btn" onclick="analyze()">Analyze</button>
   </div>
 </div>
 
 <div id="loading">initializing globe…</div>
 
-<!-- globe.gl (bundles Three.js) -->
 <script src="https://unpkg.com/globe.gl@2.27.2/dist/globe.gl.min.js"></script>
 <script>
-/* ═══════════════════════════════════════
-   STARFIELD
-═══════════════════════════════════════ */
-(function () {
-  const cv = document.getElementById('starfield');
-  const cx = cv.getContext('2d');
-  let W, H, stars = [];
 
-  function resize() { W = cv.width = innerWidth; H = cv.height = innerHeight; }
-
-  function mkStar() {
-    return {
-      x: Math.random() * W, y: Math.random() * H,
-      r: Math.random() * 1.25 + 0.1,
-      o: Math.random() * 0.72 + 0.1,
-      sp: Math.random() * 0.35 + 0.04,
-      ph: Math.random() * Math.PI * 2,
-      col: Math.random() > 0.96 ? '#4af0c4'
-         : Math.random() > 0.93 ? '#ffd166' : '#ffffff'
+// ─── STARFIELD ──────────────────────────────────────────────────────────────
+// drawn on canvas at z-index 0, stars twinkle via sine on opacity
+(function(){
+  const cv=document.getElementById('starfield'),cx=cv.getContext('2d');
+  let W,H,stars=[];
+  function resize(){W=cv.width=innerWidth;H=cv.height=innerHeight;}
+  function mkStar(){
+    return{
+      x:Math.random()*W, y:Math.random()*H,
+      r:Math.random()*1.1+0.1,
+      o:Math.random()*0.6+0.1,
+      sp:Math.random()*0.3+0.04,   // twinkle speed
+      ph:Math.random()*Math.PI*2,  // phase offset so they don't all sync
+      // mostly white, occasional blue/yellow for color variation
+      col:Math.random()>.94?'#7ACCFF':Math.random()>.90?'#FFE19E':'rgba(235,241,255,0.9)'
     };
   }
-
-  function init() { stars = Array.from({ length: Math.floor(W * H / 650) }, mkStar); }
-
-  let t = 0;
-  function draw() {
-    cx.clearRect(0, 0, W, H);
-    const g = cx.createRadialGradient(W/2,H/2,0, W/2,H/2, Math.hypot(W,H)*0.62);
-    g.addColorStop(0, '#060f1e');
-    g.addColorStop(0.5, '#040b16');
-    g.addColorStop(1, '#03060f');
-    cx.fillStyle = g; cx.fillRect(0, 0, W, H);
-    t += 0.006;
-    for (const s of stars) {
-      cx.globalAlpha = s.o * (0.5 + 0.5 * Math.sin(t * s.sp + s.ph));
-      cx.beginPath();
-      cx.arc(s.x, s.y, s.r, 0, Math.PI * 2);
-      cx.fillStyle = s.col;
-      cx.fill();
+  function init(){stars=Array.from({length:Math.floor(W*H/700)},mkStar);}
+  let t=0;
+  function draw(){
+    cx.clearRect(0,0,W,H);
+    // radial bg so center is slightly lighter than edges
+    const g=cx.createRadialGradient(W/2,H*.4,0,W/2,H*.4,Math.hypot(W,H)*.7);
+    g.addColorStop(0,'#020d1c');g.addColorStop(0.4,'#010b18');g.addColorStop(1,'#010810');
+    cx.fillStyle=g;cx.fillRect(0,0,W,H);
+    t+=.005;
+    for(const s of stars){
+      cx.globalAlpha=s.o*(0.45+0.55*Math.sin(t*s.sp+s.ph));
+      cx.beginPath();cx.arc(s.x,s.y,s.r,0,Math.PI*2);
+      cx.fillStyle=s.col;cx.fill();
     }
-    cx.globalAlpha = 1;
-    requestAnimationFrame(draw);
+    cx.globalAlpha=1;requestAnimationFrame(draw);
   }
-
-  resize(); init(); draw();
-  addEventListener('resize', () => { resize(); init(); });
+  resize();init();draw();
+  addEventListener('resize',()=>{resize();init();});
 })();
 
-/* ═══════════════════════════════════════
-   WER DATA  (iso_a3 → { accent, wer })
-═══════════════════════════════════════ */
-const WER = {
-  USA:{a:'General American',w:8.1},
-  GBR:{a:'Received Pronunciation',w:12.3},
-  AUS:{a:'Australian English',w:14.7},
-  CAN:{a:'Canadian English',w:10.2},
-  IND:{a:'Indian English',w:22.5},
-  NGA:{a:'Nigerian English',w:41.7},
-  ZAF:{a:'South African English',w:28.9},
-  SGP:{a:'Singlish',w:31.2},
-  IRL:{a:'Hiberno-English',w:16.4},
-  NZL:{a:'New Zealand English',w:15.8},
-  PAK:{a:'Pakistani English',w:27.3},
-  PHL:{a:'Philippine English',w:20.1},
-  JAM:{a:'Jamaican English',w:38.4},
-  GHA:{a:'Ghanaian English',w:36.9},
-  KEN:{a:'Kenyan English',w:33.2},
-  ZWE:{a:'Zimbabwean English',w:30.5},
-  TZA:{a:'Tanzanian English',w:34.1},
-  CMR:{a:'Cameroonian English',w:39.7},
-  BRA:{a:'Brazilian English',w:36.4},
-  FRA:{a:'French-accented English',w:33.1},
-  DEU:{a:'German-accented English',w:29.8},
-  CHN:{a:'Chinese-accented English',w:35.6},
-  JPN:{a:'Japanese-accented English',w:40.2},
-  KOR:{a:'Korean-accented English',w:37.8},
-  SAU:{a:'Arabic-accented English',w:44.3},
-  RUS:{a:'Russian-accented English',w:31.7},
-  POL:{a:'Polish-accented English',w:28.4},
-  ESP:{a:'Spanish-accented English',w:32.1},
-  ITA:{a:'Italian-accented English',w:30.9},
-  PRT:{a:'Portuguese English',w:34.5},
-  MEX:{a:'Mexican English',w:29.3},
-  ARG:{a:'Argentine English',w:31.8},
-  MYS:{a:'Malaysian English',w:25.4},
-  IDN:{a:'Indonesian English',w:38.1},
-  THA:{a:'Thai-accented English',w:43.2},
-  VNM:{a:'Vietnamese English',w:41.9},
-  EGY:{a:'Egyptian English',w:40.6},
-  MAR:{a:'Moroccan English',w:42.8},
-  ETH:{a:'Ethiopian English',w:44.1},
-  TUR:{a:'Turkish English',w:35.3},
-  IRN:{a:'Persian English',w:38.7},
-  SWE:{a:'Swedish English',w:18.9},
-  NOR:{a:'Norwegian English',w:17.6},
-  DNK:{a:'Danish English',w:19.4},
-  FIN:{a:'Finnish English',w:21.3},
-  NLD:{a:'Dutch-accented English',w:16.8},
-  BEL:{a:'Belgian English',w:22.7},
-  CHE:{a:'Swiss English',w:23.5},
-  AUT:{a:'Austrian English',w:26.1},
-  GRC:{a:'Greek English',w:33.8},
-  HUN:{a:'Hungarian English',w:29.6},
-  CZE:{a:'Czech English',w:27.4},
-  ROU:{a:'Romanian English',w:31.5},
+
+// ─── WER DATA ───────────────────────────────────────────────────────────────
+// iso3 → accent name + WER %
+// countries not listed here get a deterministic hash-based WER in getW()
+const WER={
+  USA:{a:'General American',w:8.1},GBR:{a:'Received Pronunciation',w:12.3},
+  AUS:{a:'Australian English',w:14.7},CAN:{a:'Canadian English',w:10.2},
+  IND:{a:'Indian English',w:22.5},NGA:{a:'Nigerian English',w:41.7},
+  ZAF:{a:'South African English',w:28.9},SGP:{a:'Singlish',w:31.2},
+  IRL:{a:'Hiberno-English',w:16.4},NZL:{a:'New Zealand English',w:15.8},
+  PAK:{a:'Pakistani English',w:27.3},PHL:{a:'Philippine English',w:20.1},
+  JAM:{a:'Jamaican English',w:38.4},GHA:{a:'Ghanaian English',w:36.9},
+  KEN:{a:'Kenyan English',w:33.2},ZWE:{a:'Zimbabwean English',w:30.5},
+  BRA:{a:'Brazilian English',w:36.4},FRA:{a:'French-accented English',w:33.1},
+  DEU:{a:'German-accented English',w:29.8},CHN:{a:'Chinese-accented English',w:35.6},
+  JPN:{a:'Japanese-accented English',w:40.2},SAU:{a:'Arabic-accented English',w:44.3},
+  RUS:{a:'Russian-accented English',w:31.7},MEX:{a:'Mexican English',w:29.3},
+  SWE:{a:'Swedish English',w:18.9},NOR:{a:'Norwegian English',w:17.6},
+  NLD:{a:'Dutch-accented English',w:16.8},ESP:{a:'Spanish-accented English',w:32.1},
+  ITA:{a:'Italian-accented English',w:30.9},PRT:{a:'Portuguese English',w:34.5},
+  ARG:{a:'Argentine English',w:31.8},MYS:{a:'Malaysian English',w:25.4},
+  IDN:{a:'Indonesian English',w:38.1},THA:{a:'Thai-accented English',w:43.2},
+  VNM:{a:'Vietnamese English',w:41.9},EGY:{a:'Egyptian English',w:40.6},
+  TUR:{a:'Turkish English',w:35.3},POL:{a:'Polish-accented English',w:28.4},
+  GRC:{a:'Greek English',w:33.8},ROU:{a:'Romanian English',w:31.5}
 };
 
-function getW(iso) {
-  if (WER[iso]) return WER[iso].w;
-  let h = 0;
-  for (const c of (iso||'')) h = (h*31 + c.charCodeAt(0)) & 0xffff;
-  return 18 + (h % 36);
+function getW(iso){
+  if(WER[iso])return WER[iso].w;
+  // hash the iso string so unknown countries always render the same color
+  let h=0;for(const c of(iso||''))h=(h*31+c.charCodeAt(0))&0xffff;
+  return 18+(h%36);
 }
-function getA(iso) { return WER[iso]?.a || 'English (regional)'; }
+function getA(iso){return WER[iso]?.a||'English (regional)';}
 
-/* ═══════════════════════════════════════
-   COLOR SCALE: teal → amber → coral
-═══════════════════════════════════════ */
-function wCol(w, al = 0.82) {
-  const t = Math.min(w / 55, 1);
-  let r, g, b;
-  if (t < 0.4) {
-    const u = t / 0.4;
-    r = Math.round(74  + (255-74)  * u);
-    g = Math.round(240 + (209-240) * u);
-    b = Math.round(196 + (102-196) * u);
+
+// ─── WER COLOR SCALE ────────────────────────────────────────────────────────
+// maps WER % → rgba string for globe polygon fills
+// matches the legend bar gradient in CSS:
+//   0–28% : white → light blue
+//   28–62%: light blue → primary blue
+//   62–100%: primary blue → dark navy
+function wCol(w,al=0.82){
+  const t=Math.min(w/55,1);
+  let r,g,b;
+  if(t<0.28){
+    const u=t/0.28;
+    r=Math.round(255+(122-255)*u); g=Math.round(255+(204-255)*u); b=255;
+  } else if(t<0.62){
+    const u=(t-0.28)/0.34;
+    r=Math.round(122+(17-122)*u); g=Math.round(204+(136-204)*u); b=Math.round(255+(247-255)*u);
   } else {
-    const u = (t - 0.4) / 0.6;
-    r = 255;
-    g = Math.round(209 * (1-u));
-    b = Math.round(102 * (1-u));
+    const u=(t-0.62)/0.38;
+    r=Math.round(17+(1-17)*u); g=Math.round(136+(35-136)*u); b=Math.round(247+(71-247)*u);
   }
-  return `rgba(${r},${g},${b},${al})`;
+  return`rgba(${r},${g},${b},${al})`;
 }
 
-/* ═══════════════════════════════════════
-   GLOBE
-═══════════════════════════════════════ */
+
+// ─── GLOBE ──────────────────────────────────────────────────────────────────
+// globe.gl wraps three.js — geojson from D3 gallery
+// polygonAltitude varies by WER so high-error countries lift off the surface
 let globe;
-
-function buildGlobe(geo) {
-  // Normalize ISO field
-  geo.features = geo.features.map(f => ({
-    ...f,
-    properties: {
+function buildGlobe(geo){
+  // normalize iso field — geojson sources use different property names
+  geo.features=geo.features.map(f=>({
+    ...f,properties:{
       ...f.properties,
-      iso: f.properties.iso_a3 || f.properties.ISO_A3 || '',
-      name: f.properties.name || f.properties.ADMIN || f.properties.NAME || 'Unknown',
+      iso:f.properties.iso_a3||f.properties.ISO_A3||'',
+      name:f.properties.name||f.properties.ADMIN||f.properties.NAME||'Unknown'
     }
   }));
-
-  const features = geo.features.map(f => ({
-    ...f,
-    properties: {
-      ...f.properties,
-      wer: getW(f.properties.iso),
-      accent: getA(f.properties.iso),
-    }
+  const features=geo.features.map(f=>({
+    ...f,properties:{...f.properties,wer:getW(f.properties.iso),accent:getA(f.properties.iso)}
   }));
 
-  globe = Globe()
-    .width(innerWidth)
-    .height(innerHeight)
+  globe=Globe()
+    .width(innerWidth).height(innerHeight)
     .backgroundColor('rgba(0,0,0,0)')
-    // Real Earth day texture from NASA/ESRI tiles
     .globeImageUrl('https://unpkg.com/three-globe/example/img/earth-blue-marble.jpg')
     .bumpImageUrl('https://unpkg.com/three-globe/example/img/earth-topology.png')
-    .atmosphereColor('#4af0c4')
-    .atmosphereAltitude(0.14)
-    // Heatmap overlay polygons on top of the Earth texture
+    .atmosphereColor('#1188F7').atmosphereAltitude(0.16)
     .polygonsData(features)
-    .polygonAltitude(d => {
-      const w = d.properties.wer;
-      return w > 40 ? 0.018 : w > 28 ? 0.01 : w > 16 ? 0.006 : 0.004;
-    })
-    .polygonCapColor(d => wCol(d.properties.wer, 0.62))
-    .polygonSideColor(d => wCol(d.properties.wer, 0.22))
-    .polygonStrokeColor(() => 'rgba(74,240,196,0.1)')
+    .polygonAltitude(d=>{const w=d.properties.wer;return w>40?.018:w>28?.01:w>16?.006:.004;})
+    .polygonCapColor(d=>wCol(d.properties.wer,0.65))
+    .polygonSideColor(d=>wCol(d.properties.wer,0.2))
+    .polygonStrokeColor(()=>'rgba(17,136,247,0.12)')
     .polygonLabel(null)
     .onPolygonHover(onHover)
     .polygonsTransitionDuration(350)
     (document.getElementById('globeViz'));
 
-  // Transparent renderer so starfield shows
-  globe.renderer().setClearColor(0x000000, 0);
-  globe.renderer().domElement.style.position = 'absolute';
+  globe.renderer().setClearColor(0x000000,0);
+  globe.renderer().domElement.style.position='absolute';
 
-  // Controls
-  const ctrl = globe.controls();
-  ctrl.autoRotate = true;
-  ctrl.autoRotateSpeed = 0.22;
-  ctrl.enableZoom = true;         // ← zoom enabled
-  ctrl.zoomSpeed = 0.9;
-  ctrl.minDistance = 150;
-  ctrl.maxDistance = 800;
-  ctrl.minPolarAngle = 0.3;
-  ctrl.maxPolarAngle = Math.PI - 0.3;
+  const ctrl=globe.controls();
+  ctrl.autoRotate=true; ctrl.autoRotateSpeed=0.2;
+  ctrl.enableZoom=true; ctrl.zoomSpeed=0.9;
+  ctrl.minDistance=150; ctrl.maxDistance=800;
+  ctrl.minPolarAngle=0.3; ctrl.maxPolarAngle=Math.PI-0.3;
 
-  // Pause auto-rotate while interacting
-  const el = document.getElementById('globeViz');
+  // pause auto-rotate on any interaction, resume after 2.2s idle
+  const el=document.getElementById('globeViz');
   let timer;
-  function pauseRotate() {
-    ctrl.autoRotate = false;
-    clearTimeout(timer);
-    timer = setTimeout(() => ctrl.autoRotate = true, 2200);
-  }
-  el.addEventListener('mousedown', pauseRotate);
-  el.addEventListener('wheel', pauseRotate, { passive: true });
-  el.addEventListener('touchstart', pauseRotate, { passive: true });
+  function pauseRotate(){ctrl.autoRotate=false;clearTimeout(timer);timer=setTimeout(()=>ctrl.autoRotate=true,2200);}
+  el.addEventListener('mousedown',pauseRotate);
+  el.addEventListener('wheel',pauseRotate,{passive:true});
+  el.addEventListener('touchstart',pauseRotate,{passive:true});
 
-  // Manual zoom buttons
-  document.getElementById('zin').onclick  = () => { pauseRotate(); zoomBy(-60); };
-  document.getElementById('zout').onclick = () => { pauseRotate(); zoomBy(+60); };
-
-  addEventListener('resize', () => globe.width(innerWidth).height(innerHeight));
-  document.getElementById('loading').style.display = 'none';
+  document.getElementById('zin').onclick=()=>{pauseRotate();zoomBy(-60);};
+  document.getElementById('zout').onclick=()=>{pauseRotate();zoomBy(+60);};
+  addEventListener('resize',()=>globe.width(innerWidth).height(innerHeight));
+  document.getElementById('loading').style.display='none';
 }
 
-function zoomBy(delta) {
-  if (!globe) return;
-  const cam = globe.camera();
-  const ctrl = globe.controls();
-  // Move camera along its z axis
-  const dir = cam.position.clone().normalize();
-  cam.position.addScaledVector(dir, delta);
+// move camera closer/further along its current look direction
+function zoomBy(delta){
+  if(!globe)return;
+  const cam=globe.camera(),ctrl=globe.controls();
+  cam.position.addScaledVector(cam.position.clone().normalize(),delta);
   ctrl.update();
 }
 
-/* ═══════════════════════════════════════
-   HOVER TOOLTIP
-═══════════════════════════════════════ */
-const tip = document.getElementById('tip');
 
-function onHover(poly) {
-  if (!poly) { tip.style.display = 'none'; return; }
-  const { name, wer, accent } = poly.properties;
-  const col = wCol(wer, 1);
-  const bias = wer < 20 ? { l:'low bias',  bg:'rgba(74,240,196,.13)', c:'#4af0c4' }
-             : wer < 35 ? { l:'med bias',  bg:'rgba(255,209,102,.13)',c:'#ffd166' }
-                        : { l:'high bias', bg:'rgba(255,107,107,.13)',c:'#ff6b6b' };
-
-  document.getElementById('tc').textContent = name;
-  document.getElementById('ta').textContent = accent;
-  document.getElementById('tw').textContent = wer.toFixed(1) + '%';
-  document.getElementById('tw').style.color = col;
-  document.getElementById('tf').style.width = Math.min(wer/60*100,100) + '%';
-  document.getElementById('tf').style.background = col;
-  const badge = document.getElementById('tb');
-  badge.textContent = bias.l;
-  badge.style.background = bias.bg;
-  badge.style.color = bias.c;
-  tip.style.display = 'block';
+// ─── TOOLTIP ────────────────────────────────────────────────────────────────
+const tip=document.getElementById('tip');
+function onHover(poly){
+  if(!poly){tip.style.display='none';return;}
+  const{name,wer,accent}=poly.properties;
+  const col=wCol(wer,1);
+  // badge: lblue=low bias, yellow=med, blue=high
+  const bias=wer<20
+    ?{l:'low bias', bg:'rgba(122,204,255,.12)',c:'#7ACCFF'}
+    :wer<35
+      ?{l:'med bias',bg:'rgba(255,225,158,.1)', c:'#FFE19E'}
+      :{l:'high bias',bg:'rgba(17,136,247,.12)', c:'#1188F7'};
+  document.getElementById('tc').textContent=name;
+  document.getElementById('ta').textContent=accent;
+  document.getElementById('tw').textContent=wer.toFixed(1)+'%';
+  document.getElementById('tw').style.color=col;
+  document.getElementById('tf').style.width=Math.min(wer/60*100,100)+'%';
+  document.getElementById('tf').style.background=col;
+  const badge=document.getElementById('tb');
+  badge.textContent=bias.l;badge.style.background=bias.bg;badge.style.color=bias.c;
+  tip.style.display='block';
 }
-
-document.addEventListener('mousemove', e => {
-  if (tip.style.display !== 'block') return;
-  const cw = tip.offsetWidth, ch = tip.offsetHeight;
-  const x = e.clientX + 20, y = e.clientY - 12;
-  tip.style.left = (x + cw > innerWidth  ? e.clientX - cw - 20 : x) + 'px';
-  tip.style.top  = (y + ch > innerHeight ? e.clientY - ch - 12 : y) + 'px';
+// keep tooltip near cursor, flip sides if it would overflow viewport
+document.addEventListener('mousemove',e=>{
+  if(tip.style.display!=='block')return;
+  const cw=tip.offsetWidth,ch=tip.offsetHeight;
+  const x=e.clientX+20,y=e.clientY-12;
+  tip.style.left=(x+cw>innerWidth?e.clientX-cw-20:x)+'px';
+  tip.style.top=(y+ch>innerHeight?e.clientY-ch-12:y)+'px';
 });
 
-/* ═══════════════════════════════════════
-   FETCH GEOJSON + BUILD
-═══════════════════════════════════════ */
 fetch('https://raw.githubusercontent.com/holtzy/D3-graph-gallery/master/DATA/world.geojson')
-  .then(r => r.json())
-  .then(buildGlobe)
-  .catch(() => {
-    document.getElementById('loading').textContent = 'failed to load map — check connection';
-  });
+  .then(r=>r.json()).then(buildGlobe)
+  .catch(()=>{document.getElementById('loading').textContent='failed to load map';});
 
-/* ═══════════════════════════════════════
-   MODAL
-═══════════════════════════════════════ */
-function openModal()  { document.getElementById('modal').classList.add('open'); }
-function closeModal() { document.getElementById('modal').classList.remove('open'); }
 
-document.getElementById('modal').addEventListener('click', e => {
-  if (e.target === e.currentTarget) closeModal();
+// ─── MODAL ──────────────────────────────────────────────────────────────────
+function openModal(){document.getElementById('modal').classList.add('open');}
+function closeModal(){document.getElementById('modal').classList.remove('open');}
+// click outside the card to dismiss
+document.getElementById('modal').addEventListener('click',e=>{
+  if(e.target===e.currentTarget)closeModal();
 });
-
-document.querySelectorAll('.opt').forEach(o => {
-  o.addEventListener('click', function () {
-    document.querySelectorAll(`.opt[data-g="${this.dataset.g}"]`)
-            .forEach(c => c.classList.remove('sel'));
-    this.classList.add('sel');
-  });
-});
-
-function onFile(e) {
-  const f = e.target?.files?.[0];
-  if (!f) return;
-  document.getElementById('dz').innerHTML = `
+// update dropzone UI after a file is picked
+function onFile(e){
+  const f=e.target?.files?.[0];if(!f)return;
+  document.getElementById('dz').innerHTML=`
     <svg viewBox="0 0 24 24"><path d="M12 3v10.55c-.59-.34-1.27-.55-2-.55-2.21 0-4 1.79-4 4s1.79 4 4 4 4-1.79 4-4V7h4V3h-6z"/></svg>
     <div class="dz-text"><span>${f.name}</span></div>
-    <div class="dz-hint">${(f.size/1024).toFixed(1)} KB · ready to analyze</div>
-  `;
+    <div class="dz-hint">${(f.size/1024).toFixed(1)} KB · ready to analyze</div>`;
 }
-
-const dz = document.getElementById('dz');
-dz.addEventListener('dragover',  e => { e.preventDefault(); dz.classList.add('over'); });
-dz.addEventListener('dragleave', () => dz.classList.remove('over'));
-dz.addEventListener('drop', e => {
-  e.preventDefault(); dz.classList.remove('over');
-  const f = e.dataTransfer.files[0];
-  if (f?.type.startsWith('audio/')) onFile({ target: { files: [f] } });
+// drag-and-drop support
+const dz=document.getElementById('dz');
+dz.addEventListener('dragover',e=>{e.preventDefault();dz.classList.add('over');});
+dz.addEventListener('dragleave',()=>dz.classList.remove('over'));
+dz.addEventListener('drop',e=>{
+  e.preventDefault();dz.classList.remove('over');
+  const f=e.dataTransfer.files[0];
+  if(f?.type.startsWith('audio/'))onFile({target:{files:[f]}});
 });
 
-function analyze() {
+
+// ─── ANALYZE FLOW ────────────────────────────────────────────────────────────
+// analyze() → runParsingAnimation() → showReport()
+// globe spins faster as % climbs, bursts at 100%, then slides right
+
+function analyze(){
   closeModal();
-  setTimeout(() => alert('Connect this to your STT backend:\nPOST audio → get transcript → compute WER → highlight region on globe.'), 200);
+  document.getElementById('upload-trigger').style.display='none';
+  runParsingAnimation().then(()=>showReport());
 }
 
-document.addEventListener('keydown', e => { if (e.key === 'Escape') closeModal(); });
+function runParsingAnimation(){
+  return new Promise(resolve=>{
+    const overlay=document.getElementById('parsing-overlay');
+    const text=document.getElementById('parsing-text');
+    const wrapper=document.getElementById('globe-wrapper');
+    overlay.classList.add('active');
+    if(globe)globe.controls().autoRotate=true;
+
+    let pct=0;
+    const iv=setInterval(()=>{
+      pct+=Math.floor(Math.random()*7)+2;
+      if(pct>100)pct=100;
+
+      // ramp spin speed 0.2 → 6 proportional to parse progress
+      if(globe)globe.controls().autoRotateSpeed=0.2+(pct/100)*5.8;
+
+      if(pct>=100){
+        clearInterval(iv);
+        text.textContent='PARSING...100%';
+        // burst: max speed + CSS scale-up
+        if(globe)globe.controls().autoRotateSpeed=12;
+        wrapper.classList.add('parsing-burst');
+        setTimeout(()=>{
+          wrapper.classList.remove('parsing-burst');
+          if(globe)globe.controls().autoRotateSpeed=0.22;
+          overlay.classList.remove('active');
+          resolve();
+        },700);
+        return;
+      }
+
+      text.textContent='PARSING...'+pct+'%';
+    },110);
+  });
+}
+
+function showReport(){
+  document.getElementById('globe-wrapper').classList.add('report-mode');
+  document.getElementById('report-panel').classList.add('open');
+}
+
+function closeReport(){
+  document.getElementById('report-panel').classList.remove('open');
+  document.getElementById('globe-wrapper').classList.remove('report-mode');
+  document.getElementById('upload-trigger').style.display='';
+}
+
+// stub left over from when report was a sidebar with a connecting SVG line
+function drawConnectLine(){}
+
+document.addEventListener('keydown',e=>{
+  if(e.key==='Escape'){closeModal();closeReport();}
+});
 </script>
 </body>
 </html>
