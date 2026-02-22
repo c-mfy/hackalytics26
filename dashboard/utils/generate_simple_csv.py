@@ -6,9 +6,16 @@ import os
 from openai import OpenAI
 from dotenv import load_dotenv
 import re
+from utils.fill_phonemes import update_phoneme_counts
 
 load_dotenv()
 client = OpenAI(api_key=os.getenv("OPENAI_API_KEY"))
+
+def normalize(text):
+    text = text.lower().strip()
+    text = re.sub(r'[^\w\s]', '', text)  # remove punctuation
+    text = re.sub(r'\s+', ' ', text)     # collapse multiple spaces
+    return text
 
 def create_simple_csv(input_csv="data/transcripts.csv",
                       output_csv="data/simple_transcripts.csv",
@@ -30,38 +37,25 @@ def create_simple_csv(input_csv="data/transcripts.csv",
 
     for idx, row in subset.iterrows():
         filename = audio_dir + "/" + row['path']
+        ground_truth = row['sentence']
+        error_sum = 0.0
+        predicted_text = ""
 
-        with open(filename, "rb") as audio_file:
-            transcription = client.audio.transcriptions.create(
+        # transcribe 5 times and average the WER
+        for _ in range(5):
+            with open(filename, "rb") as audio_file:
+                transcription = client.audio.transcriptions.create(
                     model="gpt-4o-mini-transcribe",
                     file=audio_file
                 )
-            predicted_text = transcription.text.lower().strip()
-            subset.loc[idx, 'prediction'] = predicted_text
+                predicted_text = transcription.text.lower().strip()
+                error_sum += wer(normalize(ground_truth), normalize(predicted_text))
 
-            # compute WER FIVE times and compute average WER
-            count = 5
-            current_error = 0.0
-            error_sum = 0.0
-            error = 0.0
-            while count > 0:
-
-                ground_truth = row['sentence']
-                # print(f"Ground truth: {ground_truth}")
-                # print(repr(ground_truth))
-                # print(repr(predicted_text))
-
-                def normalize(text):
-                    text = text.lower().strip()
-                    text = re.sub(r'[^\w\s]', '', text)  # remove punctuation
-                    text = re.sub(r'\s+', ' ', text)     # collapse multiple spaces
-                    return text
-
-                current_error = wer(normalize(ground_truth), normalize(predicted_text))
-                # error = wer(ground_truth, predicted_text)
-                # print(error)
-                error_sum += current_error
-                count -= 1
+        # save last prediction as a sample and average WER
+        subset.loc[idx, 'prediction'] = predicted_text
+        avg_error = error_sum / 5
+        subset.loc[idx, 'wer'] = avg_error
+        print(f"Average WER: {avg_error} = {error_sum} / 5")
 
             # TODO: count total phonemes and update phoneme_counter.csv ['total'] HERE
             # [total list of phonemes detected], [list of erroneous phonemes] = phoneme_analysis()
@@ -71,13 +65,8 @@ def create_simple_csv(input_csv="data/transcripts.csv",
             # TODO: count missed phonemes and update phoneme_counter.csv ['error'] HERE
             # for each erroneous phoneme in total erroneous list, phoneme_counter.csv row['error'] += 1
 
-
-            error = error_sum / 5
-            print(f"Average WER: {error} = {error_sum} / 5")
-
-            subset.loc[idx, 'wer'] = error
-
     # simplified_dataframe = pd.DataFrame(simplified_rows)
     os.makedirs(os.path.dirname(output_csv), exist_ok=True)
     subset.to_csv(output_csv, index=False)
     print(f"Simplified CSV saved to {output_csv}")
+    update_phoneme_counts()
