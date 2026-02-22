@@ -4,721 +4,273 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>research — speechwrite</title>
-  <link rel="preconnect" href="https://fonts.googleapis.com" />
-  <link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=DM+Mono:ital,wght@0,300;0,400;0,500;1,300&family=Italiana&display=swap" rel="stylesheet" />
   <style>
-    *, *::before, *::after { margin: 0; padding: 0; box-sizing: border-box; }
+    *, *::before, *::after { margin:0; padding:0; box-sizing:border-box; }
 
+    /* same token set as index.html — keep these in sync */
     :root {
-      --sky: #03060f;
-      --surface: #060c18;
-      --border: rgba(74,240,196,0.1);
-      --accent: #4af0c4;
-      --accent3: #ffd166;
-      --bad: #ff6b6b;
-      --text: #c8d8e8;
-      --dim: rgba(200,216,232,0.35);
-      --mono: 'DM Mono', monospace;
-      --display: 'Bebas Neue', cursive;
-      --serif: 'Italiana', serif;
+      --navy:  #010e1f;
+      --navy2: #012347;
+      --blue:  #1188F7;
+      --blue2: #0A64B8;
+      --lblue: #7ACCFF;
+      --lcyan: #75FFF8;
+      --xlight:#EBF1FF;
+      --yellow:#FFE19E;
+      --dim:   rgba(122,204,255,0.4);
+      --border:rgba(17,136,247,0.16);
+      --font:  'Microsoft Sans Serif','Segoe UI',-apple-system,BlinkMacSystemFont,sans-serif;
+    }
+    html { scroll-behavior:smooth; }
+    body { background:var(--navy); color:var(--xlight); font-family:var(--font); font-size:12.5px; line-height:1.8; overflow-x:hidden; }
+
+    /* hero — padding-driven height so it scales naturally at any viewport size
+       nav is fixed at ~68px tall, so 130px top padding always clears it */
+    .hero-section {
+      position:relative;
+      overflow:hidden; display:flex; align-items:flex-end;
+      padding: 130px 0 60px 0;
     }
 
-    html { scroll-behavior: smooth; }
-
-    body {
-      background: var(--sky);
-      color: var(--text);
-      font-family: var(--mono);
-      font-size: 13px;
-      line-height: 1.75;
-      overflow-x: hidden;
+    /* animated gradient bg — three keyframe states shift the radial center */
+    .hero-bg {
+      position:absolute; inset:0;
+      background: radial-gradient(ellipse 120% 100% at 50% 110%, #0a2847 0%, #051428 40%, #010e1f 70%);
+      animation: heroPulse 10s ease-in-out infinite alternate;
+    }
+    @keyframes heroPulse {
+      0%   { background: radial-gradient(ellipse 120% 100% at 40% 110%, #0d3060 0%, #061830 40%, #010e1f 70%); }
+      50%  { background: radial-gradient(ellipse 140% 110% at 60% 105%, #0a2848 0%, #04162c 45%, #010c1a 70%); }
+      100% { background: radial-gradient(ellipse 120% 100% at 50% 115%, #0e3570 0%, #071c38 40%, #011020 70%); }
     }
 
-    /* ── STARFIELD ──────────────────────────────── */
-    #starfield {
-      position: fixed;
-      inset: 0;
-      z-index: 0;
-      pointer-events: none;
+    /* ::before — blue glow orbs layered on top of the bg */
+    .hero-bg::before {
+      content:''; position:absolute; inset:0;
+      background:
+        radial-gradient(ellipse 50% 35% at 25% 70%, rgba(17,136,247,0.12) 0%, transparent 60%),
+        radial-gradient(ellipse 40% 30% at 75% 50%, rgba(122,204,255,0.07) 0%, transparent 60%),
+        radial-gradient(ellipse 30% 40% at 50% 90%, rgba(10,100,184,0.15) 0%, transparent 55%);
+      animation: heroGlow 7s ease-in-out infinite alternate;
+    }
+    @keyframes heroGlow {
+      0%   { opacity:0.6; transform:scale(1); }
+      100% { opacity:1;   transform:scale(1.04) translateY(-1%); }
     }
 
-    /* ── GRID LINES ─────────────────────────────── */
-    body::before {
-      content: '';
-      position: fixed;
-      inset: 0;
-      z-index: 0;
-      background-image:
-        linear-gradient(rgba(74,240,196,0.025) 1px, transparent 1px),
-        linear-gradient(90deg, rgba(74,240,196,0.025) 1px, transparent 1px);
-      background-size: 48px 48px;
-      pointer-events: none;
+    /* ::after — horizontal light streak that drifts vertically */
+    .hero-bg::after {
+      content:''; position:absolute;
+      bottom:30%; left:0; right:0; height:1px;
+      background: linear-gradient(to right, transparent 0%, rgba(17,136,247,0.2) 30%, rgba(122,204,255,0.3) 50%, rgba(17,136,247,0.2) 70%, transparent 100%);
+      animation: streakMove 6s ease-in-out infinite alternate;
     }
+    @keyframes streakMove { 0%{bottom:28%;opacity:.5} 100%{bottom:33%;opacity:1} }
 
-    /* ── NAV ─────────────────────────────────────── */
-    nav {
-      position: fixed;
-      top: 0; left: 0; right: 0;
-      z-index: 20;
-      display: flex;
-      align-items: center;
-      justify-content: space-between;
-      padding: 20px 40px;
-      background: rgba(3,6,15,0.82);
-      backdrop-filter: blur(14px);
-      border-bottom: 1px solid var(--border);
-    }
-
-    .logo-wrap { line-height: 1; }
-
-    .logo-name {
-      font-family: var(--display);
-      font-size: 23px;
-      letter-spacing: 0.04em;
-      color: var(--accent);
-      text-shadow: 0 0 22px rgba(74,240,196,0.38);
-    }
-
-    .logo-slogan {
-      font-size: 8px;
-      letter-spacing: 0.16em;
-      color: var(--dim);
-      margin-top: 1px;
-      font-style: italic;
-    }
-
-    .nav-links {
-      display: flex;
-      align-items: center;
-      gap: 22px;
-    }
-
-    .nav-link {
-      font-size: 9.5px;
-      letter-spacing: 0.16em;
-      color: var(--dim);
-      text-decoration: none;
-      text-transform: lowercase;
-      cursor: pointer;
-      transition: color .2s;
-    }
-
-    .nav-link:hover, .nav-link.active { color: var(--accent); }
-
-    .nav-cta {
-      padding: 8px 18px;
-      background: transparent;
-      border: 1px solid rgba(74,240,196,0.33);
-      border-radius: 2px;
-      color: var(--accent);
-      font-family: var(--mono);
-      font-size: 9.5px;
-      letter-spacing: 0.16em;
-      text-transform: lowercase;
-      cursor: pointer;
-      text-decoration: none;
-      transition: all .22s;
-    }
-
-    .nav-cta:hover {
-      background: var(--accent);
-      color: #03060f;
-      box-shadow: 0 0 22px rgba(74,240,196,0.28);
-    }
-
-    /* ── MAIN CONTENT ───────────────────────────── */
-    main {
-      position: relative;
-      z-index: 1;
-      max-width: 860px;
-      margin: 0 auto;
-      padding: 140px 40px 100px;
-    }
-
-    /* ── HERO ────────────────────────────────────── */
-    .hero {
-      margin-bottom: 80px;
-    }
-
-    .hero-eyebrow {
-      font-size: 9px;
-      letter-spacing: 0.28em;
-      text-transform: uppercase;
-      color: var(--accent);
-      margin-bottom: 16px;
-      display: flex;
-      align-items: center;
-      gap: 10px;
-    }
-
-    .hero-eyebrow::before {
-      content: '';
-      display: block;
-      width: 28px;
-      height: 1px;
-      background: var(--accent);
-      opacity: 0.5;
-    }
-
+    .hero-content { position:relative; z-index:2; width:100%; max-width:780px; padding:0 56px; }
+    /* ghost title — intentionally semi-transparent, gradient text */
     .hero-title {
-      font-family: var(--display);
-      font-size: clamp(52px, 8vw, 96px);
-      letter-spacing: 0.04em;
-      color: var(--text);
-      line-height: 0.9;
-      margin-bottom: 28px;
+      font-size:clamp(48px,9vw,118px); font-weight:700; letter-spacing:0.01em; line-height:0.9;
+      background: linear-gradient(160deg, rgba(235,241,255,0.3) 0%, rgba(122,204,255,0.2) 50%, rgba(17,136,247,0.15) 100%);
+      -webkit-background-clip:text; -webkit-text-fill-color:transparent;
     }
 
-    .hero-title span { color: var(--accent); }
-
-    .hero-body {
-      font-size: 14px;
-      line-height: 1.85;
-      color: var(--text);
-      max-width: 600px;
-      font-weight: 300;
+    /* fixed nav — just the logo/home link, no other items on this page */
+    nav {
+      position:fixed; top:0; left:0; right:0; z-index:50;
+      display:flex; align-items:center; padding:18px 36px;
+      background:rgba(1,10,22,0.6); backdrop-filter:blur(20px);
+      border-bottom:1px solid rgba(17,136,247,0.08);
     }
+    .logo-wrap { display:flex; align-items:center; gap:10px; text-decoration:none; cursor:pointer; }
+    .logo-icon { width:30px; height:30px; border-radius:7px; background:linear-gradient(135deg,rgba(17,136,247,0.25),rgba(117,255,248,0.08)); border:1px solid rgba(17,136,247,0.28); display:flex; align-items:center; justify-content:center; font-size:13px; color:var(--lblue); }
+    .logo-name { font-size:15px; font-weight:600; }
+    .logo-name .w1 { color:var(--xlight); }
+    .logo-name .w2 { background:linear-gradient(90deg,var(--blue) 0%,var(--lblue) 100%); -webkit-background-clip:text; -webkit-text-fill-color:transparent; }
 
-    /* ── SECTION ─────────────────────────────────── */
-    .section {
-      margin-bottom: 72px;
-      padding-top: 20px;
-      border-top: 1px solid var(--border);
-      animation: fadeUp .6s ease both;
+    /* centered content column */
+    main { position:relative; z-index:1; max-width:780px; margin:0 auto; padding:72px 56px 100px; }
+
+    .section { margin-bottom:72px; }
+
+    /* section headings split into two spans:
+       .hl = gradient colored first syllable, .dm = muted rest */
+    .section-heading {
+      font-size:clamp(18px,2.5vw,26px); font-weight:600; letter-spacing:0.01em; margin-bottom:28px;
     }
-
-    @keyframes fadeUp {
-      from { opacity:0; transform:translateY(18px); }
-      to   { opacity:1; transform:translateY(0); }
+    .section-heading .hl {
+      background:linear-gradient(90deg,var(--blue) 0%,var(--lblue) 100%);
+      -webkit-background-clip:text; -webkit-text-fill-color:transparent;
     }
+    .section-heading .dm { color:rgba(235,241,255,0.45); }
 
-    .section:nth-child(2) { animation-delay:.1s; }
-    .section:nth-child(3) { animation-delay:.18s; }
-    .section:nth-child(4) { animation-delay:.26s; }
-    .section:nth-child(5) { animation-delay:.34s; }
+    p { color:rgba(235,241,255,0.62); font-size:12px; margin-bottom:18px; max-width:640px; line-height:1.82; }
 
-    .section-label {
-      font-size: 9px;
-      letter-spacing: 0.26em;
-      text-transform: uppercase;
-      color: var(--accent);
-      margin-bottom: 20px;
-    }
+    /* floating glass chart cards — drawn on canvas by drawScatterChart() in JS
+       right float for methodology section, left float for calculations */
+    .chart-float-right { float:right; width:min(280px,42%); margin:0 0 20px 28px; background:rgba(1,20,42,0.6); border:1px solid var(--border); border-radius:12px; padding:16px; backdrop-filter:blur(12px); box-shadow:0 8px 32px rgba(0,0,0,.3),inset 0 1px 0 rgba(235,241,255,0.04); }
+    .chart-float-left  { float:left;  width:min(280px,42%); margin:0 28px 20px 0; background:rgba(1,20,42,0.6); border:1px solid var(--border); border-radius:12px; padding:16px; backdrop-filter:blur(12px); box-shadow:0 8px 32px rgba(0,0,0,.3),inset 0 1px 0 rgba(235,241,255,0.04); }
+    .chart-label-row { display:flex; justify-content:space-between; align-items:center; margin-bottom:10px; }
+    .chart-year { font-size:8px; letter-spacing:.14em; color:var(--dim); }
+    .chart-unit { font-size:8px; letter-spacing:.1em; color:var(--dim); }
+    .mini-chart { width:100%; height:120px; display:block; }
+    .chart-axis-labels { display:flex; justify-content:space-between; margin-top:4px; }
+    .axis-label { font-size:7px; color:rgba(122,204,255,.25); letter-spacing:.06em; }
+    /* clearfix needed because children are floated */
+    .clearfix::after { content:''; display:block; clear:both; }
 
-    .section-title {
-      font-family: var(--display);
-      font-size: clamp(28px, 4vw, 46px);
-      letter-spacing: 0.04em;
-      color: var(--text);
-      margin-bottom: 16px;
-      line-height: 0.95;
-    }
+    .section-divider { border:none; border-top:1px solid rgba(17,136,247,0.1); margin:64px 0; }
 
-    p {
-      color: var(--text);
-      font-weight: 300;
-      margin-bottom: 14px;
-      max-width: 640px;
-    }
-
-    /* ── STAT CARDS ──────────────────────────────── */
-    .stat-grid {
-      display: grid;
-      grid-template-columns: repeat(3, 1fr);
-      gap: 14px;
-      margin-top: 32px;
-    }
-
-    .stat-card {
-      background: var(--surface);
-      border: 1px solid var(--border);
-      border-radius: 6px;
-      padding: 22px 20px;
-      position: relative;
-      overflow: hidden;
-    }
-
-    .stat-card::before {
-      content: '';
-      position: absolute;
-      top: 0; left: 0; right: 0;
-      height: 2px;
-      background: var(--card-accent, var(--accent));
-      opacity: 0.55;
-    }
-
-    .stat-card.yellow { --card-accent: var(--accent3); }
-    .stat-card.red    { --card-accent: var(--bad); }
-
-    .stat-num {
-      font-family: var(--display);
-      font-size: 44px;
-      line-height: 1;
-      color: var(--text);
-      margin-bottom: 4px;
-    }
-
-    .stat-label-sm {
-      font-size: 9px;
-      letter-spacing: 0.18em;
-      text-transform: uppercase;
-      color: var(--dim);
-    }
-
-    /* ── TEAM CARDS ──────────────────────────────── */
-    .team-grid {
-      display: grid;
-      grid-template-columns: repeat(3, 1fr);
-      gap: 14px;
-      margin-top: 28px;
-    }
-
-    .team-card {
-      background: var(--surface);
-      border: 1px solid var(--border);
-      border-radius: 6px;
-      padding: 22px 20px;
-      transition: border-color .2s;
-    }
-
-    .team-card:hover { border-color: rgba(74,240,196,0.28); }
-
-    .team-avatar {
-      width: 42px; height: 42px;
-      border-radius: 50%;
-      background: linear-gradient(135deg, rgba(74,240,196,0.2), rgba(74,240,196,0.05));
-      border: 1px solid rgba(74,240,196,0.2);
-      display: grid;
-      place-items: center;
-      font-family: var(--display);
-      font-size: 18px;
-      color: var(--accent);
-      margin-bottom: 14px;
-    }
-
-    .team-name {
-      font-family: var(--display);
-      font-size: 18px;
-      letter-spacing: 0.04em;
-      color: var(--text);
-      margin-bottom: 2px;
-    }
-
-    .team-role {
-      font-size: 9px;
-      letter-spacing: 0.18em;
-      text-transform: uppercase;
-      color: var(--dim);
-    }
-
-    /* ── PIPELINE ────────────────────────────────── */
-    .pipeline {
-      display: flex;
-      flex-direction: column;
-      gap: 0;
-      margin-top: 28px;
-    }
-
-    .pipe-step {
-      display: grid;
-      grid-template-columns: 48px 1fr;
-      gap: 18px;
-      align-items: start;
-      position: relative;
-    }
-
-    .pipe-step:not(:last-child)::after {
-      content: '';
-      position: absolute;
-      left: 23px;
-      top: 44px;
-      bottom: -8px;
-      width: 1px;
-      background: var(--border);
-    }
-
-    .pipe-num {
-      width: 44px; height: 44px;
-      border: 1px solid var(--border);
-      border-radius: 4px;
-      display: grid;
-      place-items: center;
-      font-family: var(--display);
-      font-size: 20px;
-      color: var(--accent);
-      background: var(--surface);
-      flex-shrink: 0;
-    }
-
-    .pipe-body { padding-bottom: 28px; }
-
-    .pipe-title {
-      font-family: var(--display);
-      font-size: 18px;
-      letter-spacing: 0.04em;
-      color: var(--text);
-      margin-bottom: 4px;
-    }
-
-    .pipe-desc {
-      font-size: 12px;
-      color: var(--dim);
-      font-weight: 300;
-      max-width: 500px;
-    }
-
-    /* ── FORMULA ─────────────────────────────────── */
-    .formula-block {
-      background: var(--surface);
-      border: 1px solid var(--border);
-      border-radius: 6px;
-      padding: 24px 28px;
-      margin-top: 20px;
-      font-family: var(--mono);
-    }
-
-    .formula {
-      font-size: 15px;
-      color: var(--accent);
-      margin-bottom: 10px;
-      letter-spacing: 0.04em;
-    }
-
-    .formula-note {
-      font-size: 10px;
-      letter-spacing: 0.1em;
-      color: var(--dim);
-    }
-
-    /* ── WER SCALE ───────────────────────────────── */
-    .wer-scale {
-      margin-top: 20px;
-      display: flex;
-      flex-direction: column;
-      gap: 10px;
-    }
-
-    .wer-row {
-      display: flex;
-      align-items: center;
-      gap: 14px;
-    }
-
-    .wer-range {
-      min-width: 64px;
-      font-size: 10px;
-      letter-spacing: 0.1em;
-      color: var(--dim);
-    }
-
-    .wer-bar-bg {
-      flex: 1;
-      height: 5px;
-      background: rgba(255,255,255,0.05);
-      border-radius: 3px;
-      overflow: hidden;
-    }
-
-    .wer-fill { height: 100%; border-radius: 3px; }
-    .wer-tag-sm {
-      font-size: 9px;
-      letter-spacing: 0.16em;
-      text-transform: uppercase;
-      min-width: 60px;
-    }
-
-    /* ── CTA ─────────────────────────────────────── */
-    .cta-block {
-      background: linear-gradient(135deg, rgba(74,240,196,0.06) 0%, rgba(74,240,196,0.02) 100%);
-      border: 1px solid rgba(74,240,196,0.18);
-      border-radius: 8px;
-      padding: 40px 40px;
-      text-align: center;
-      margin-top: 20px;
-    }
-
-    .cta-title {
-      font-family: var(--display);
-      font-size: 40px;
-      letter-spacing: 0.06em;
-      color: var(--text);
-      margin-bottom: 8px;
-    }
-
-    .cta-sub {
-      font-size: 11px;
-      letter-spacing: 0.14em;
-      color: var(--dim);
-      margin-bottom: 24px;
-    }
-
-    .cta-btn {
-      display: inline-flex;
-      align-items: center;
-      gap: 8px;
-      padding: 12px 28px;
-      background: var(--accent);
-      color: #03060f;
-      border: none;
-      border-radius: 2px;
-      font-family: var(--display);
-      font-size: 17px;
-      letter-spacing: 0.14em;
-      text-transform: lowercase;
-      text-decoration: none;
-      cursor: pointer;
-      transition: all .22s;
-    }
-
-    .cta-btn:hover {
-      background: #7af8d8;
-      box-shadow: 0 0 30px rgba(74,240,196,0.38);
-    }
-
-    /* ── FOOTER ──────────────────────────────────── */
-    footer {
-      position: relative;
-      z-index: 1;
-      border-top: 1px solid var(--border);
-      padding: 24px 40px;
-      display: flex;
-      align-items: center;
-      justify-content: space-between;
-      font-size: 9px;
-      letter-spacing: 0.14em;
-      text-transform: lowercase;
-      color: var(--dim);
-    }
-
-    footer a { color: var(--dim); text-decoration: none; transition: color .2s; }
-    footer a:hover { color: var(--accent); }
-
-    /* ── SCROLLBAR ───────────────────────────────── */
-    ::-webkit-scrollbar { width: 5px; }
-    ::-webkit-scrollbar-track { background: var(--sky); }
-    ::-webkit-scrollbar-thumb { background: rgba(74,240,196,0.15); border-radius: 3px; }
-
-    @media (max-width: 680px) {
-      .stat-grid, .team-grid { grid-template-columns: 1fr; }
-    }
+    ::-webkit-scrollbar { width:4px; }
+    ::-webkit-scrollbar-track { background:var(--navy); }
+    ::-webkit-scrollbar-thumb { background:rgba(17,136,247,0.15); border-radius:2px; }
   </style>
 </head>
 <body>
 
-<canvas id="starfield"></canvas>
-
-<!-- NAV -->
+<!-- fixed nav — logo only, links back to home -->
 <nav>
-  <div class="logo-wrap">
-    <div class="logo-name">speechwrite</div>
-    <div class="logo-slogan">speech right with speech write</div>
-  </div>
-  <div class="nav-links">
-    <a class="nav-link active" href="research">research</a>
-    <span class="nav-link">about</span>
-    <a class="nav-cta" href="/">← globe</a>
-  </div>
+  <a class="logo-wrap" href="/">
+    <div class="logo-icon">✦</div>
+    <div class="logo-name"><span class="w1">speech</span><span class="w2">write</span></div>
+  </a>
 </nav>
+
+<!-- hero — animated gradient bg, ghost title text -->
+<div class="hero-section">
+  <div class="hero-bg"></div>
+  <div class="hero-content">
+    <div class="hero-title">Speech Right<br>with<br>Speech Write</div>
+  </div>
+</div>
 
 <main>
 
-  <!-- HERO -->
-  <div class="hero">
-    <div class="hero-eyebrow">about speechwrite</div>
-    <h1 class="hero-title">speech right<br>with speech<br><span>write</span></h1>
-    <p class="hero-body">
-      speechwrite is a research tool that measures how fairly automatic speech recognition systems
-      treat speakers of different English accents — and makes the global picture visible.
-      we believe voice technology should work for everyone, not just those who sound like the training data.
-    </p>
-  </div>
-
-  <!-- THE PROBLEM -->
+  <!-- methodology section — chart floats right -->
   <div class="section">
-    <div class="section-label">the problem</div>
-    <h2 class="section-title">accent bias in AI speech</h2>
-    <p>
-      state-of-the-art speech-to-text systems are trained predominantly on North American and British
-      English audio. speakers with African, South Asian, East Asian, or Caribbean accents face word error
-      rates two to five times higher than their counterparts — making voice interfaces effectively
-      less functional for hundreds of millions of people.
-    </p>
-    <p>
-      this is not a fringe issue. it affects healthcare dictation, courtroom transcription, 
-      automated customer service, and accessibility tools that people depend on daily.
-    </p>
-
-    <div class="stat-grid">
-      <div class="stat-card">
-        <div class="stat-num">8.1<span style="font-size:22px;color:var(--dim)">%</span></div>
-        <div class="stat-label-sm">WER · general american</div>
-      </div>
-      <div class="stat-card yellow">
-        <div class="stat-num">31<span style="font-size:22px;color:var(--dim)">%</span></div>
-        <div class="stat-label-sm">avg WER · non-native accents</div>
-      </div>
-      <div class="stat-card red">
-        <div class="stat-num">44<span style="font-size:22px;color:var(--dim)">%</span></div>
-        <div class="stat-label-sm">WER · highest-bias regions</div>
-      </div>
-    </div>
-  </div>
-
-  <!-- HOW IT WORKS -->
-  <div class="section">
-    <div class="section-label">how it works</div>
-    <h2 class="section-title">the pipeline</h2>
-
-    <div class="pipeline">
-      <div class="pipe-step">
-        <div class="pipe-num">1</div>
-        <div class="pipe-body">
-          <div class="pipe-title">audio upload</div>
-          <div class="pipe-desc">
-            you upload a speech recording in any common format — mp3, wav, m4a, ogg, or flac.
-            recordings can be from yourself, participants, or sourced from public datasets
-            like mozilla common voice or the dialect archive.
-          </div>
+    <h2 class="section-heading"><span class="hl">meth</span><span class="dm">odology</span></h2>
+    <p>"Lorem ipsum dolor sit amet, consectetur adipiscing elit, sed do eiusmod tempor incididunt ut labore et dolore magna aliqua. Ut enim ad minim veniam, quis nostrud exercitation ullamco laboris nisi ut aliquip ex ea commodo consequat. Duis aute irure dolor in reprehenderit in voluptate velit esse cillum dolore eu fugiat nulla pariatur. Excepteur sint occaecat cupidatat non proident, sunt in culpa qui officia deserunt mollit anim id est laborum."</p>
+    <p>"Lorem ipsum dolor sit amet, consectetur adipiscing elit, sed do eiusmod tempor incididunt ut labore et dolore magna aliqua. Ut enim ad minim veniam, quis nostrud exercitation ullamco laboris nisi ut aliquip ex ea commodo consequat. Duis aute irure dolor in reprehenderit in voluptate velit esse cillum dolore eu fugiat nulla pariatur. Excepteur sint occaecat cupidatat non proident, sunt in culpa qui officia deserunt mollit anim id est laborum."</p>
+    <div class="clearfix">
+      <div class="chart-float-right">
+        <div class="chart-label-row">
+          <div class="chart-year">2000 · 2021 · 2022</div>
+          <div class="chart-unit">wer %</div>
+        </div>
+        <canvas class="mini-chart" id="chart1"></canvas>
+        <div class="chart-axis-labels">
+          <span class="axis-label">0</span><span class="axis-label">25</span>
+          <span class="axis-label">50</span><span class="axis-label">75</span>
+          <span class="axis-label">100</span>
         </div>
       </div>
-      <div class="pipe-step">
-        <div class="pipe-num">2</div>
-        <div class="pipe-body">
-          <div class="pipe-title">speech-to-text transcription</div>
-          <div class="pipe-desc">
-            we pass the audio through one or more STT models — openai whisper, google speech-to-text,
-            or azure cognitive services. you choose the model to test.
-          </div>
-        </div>
-      </div>
-      <div class="pipe-step">
-        <div class="pipe-num">3</div>
-        <div class="pipe-body">
-          <div class="pipe-title">WER computation</div>
-          <div class="pipe-desc">
-            we compare the machine transcript against your reference ground truth using word error rate —
-            the standard metric for speech recognition accuracy, counting substitutions, deletions, and insertions.
-          </div>
-        </div>
-      </div>
-      <div class="pipe-step">
-        <div class="pipe-num">4</div>
-        <div class="pipe-body">
-          <div class="pipe-title">globe visualization</div>
-          <div class="pipe-desc">
-            your result is plotted on the globe alongside aggregated data from all other tested regions,
-            creating a living heatmap of STT equity across the world.
-          </div>
-        </div>
-      </div>
+      <p>"Lorem ipsum dolor sit amet, consectetur adipiscing elit, sed do eiusmod tempor incididunt ut labore et dolore magna aliqua. Ut enim ad minim veniam, quis nostrud exercitation ullamco laboris nisi ut aliquip ex ea commodo consequat. Duis aute irure dolor in reprehenderit in voluptate velit esse cillum dolore eu fugiat nulla pariatur. Excepteur sint occaecat cupidatat non proident, sunt in culpa qui officia deserunt mollit anim id est laborum."</p>
+      <p>"Lorem ipsum dolor sit amet, consectetur adipiscing elit, sed do eiusmod tempor incididunt ut labore et dolore magna aliqua. Ut enim ad minim veniam, quis nostrud exercitation ullamco laboris nisi ut aliquip ex ea commodo consequat. Duis aute irure dolor in reprehenderit in voluptate velit esse cillum dolore eu fugiat nulla pariatur. Excepteur sint occaecat cupidatat non proident, sunt in culpa qui officia deserunt mollit anim id est laborum."</p>
     </div>
+    <p>"Lorem ipsum dolor sit amet, consectetur adipiscing elit, sed do eiusmod tempor incididunt ut labore et dolore magna aliqua. Ut enim ad minim veniam, quis nostrud exercitation ullamco laboris nisi ut aliquip ex ea commodo consequat. Duis aute irure dolor in reprehenderit in voluptate velit esse cillum dolore eu fugiat nulla pariatur. Excepteur sint occaecat cupidatat non proident, sunt in culpa qui officia deserunt mollit anim id est laborum."</p>
   </div>
 
-  <!-- WER EXPLAINED -->
+  <hr class="section-divider" />
+
+  <!-- calculations section — chart floats left -->
   <div class="section">
-    <div class="section-label">the metric</div>
-    <h2 class="section-title">word error rate</h2>
-    <p>WER is the standard benchmark for measuring STT accuracy. it compares a machine transcript to a
-       ground truth reference and counts three types of errors:</p>
-
-    <div class="formula-block">
-      <div class="formula">WER = (Substitutions + Deletions + Insertions) / N</div>
-      <div class="formula-note">where N = total words in the reference transcript</div>
+    <h2 class="section-heading"><span class="hl">calcu</span><span class="dm">lations</span></h2>
+    <p>"Lorem ipsum dolor sit amet, consectetur adipiscing elit, sed do eiusmod tempor incididunt ut labore et dolore magna aliqua. Ut enim ad minim veniam, quis nostrud exercitation ullamco laboris nisi ut aliquip ex ea commodo consequat. Duis aute irure dolor in reprehenderit in voluptate velit esse cillum dolore eu fugiat nulla pariatur. Excepteur sint occaecat cupidatat non proident, sunt in culpa qui officia deserunt mollit anim id est laborum."</p>
+    <p>"Lorem ipsum dolor sit amet, consectetur adipiscing elit, sed do eiusmod tempor incididunt ut labore et dolore magna aliqua. Ut enim ad minim veniam, quis nostrud exercitation ullamco laboris nisi ut aliquip ex ea commodo consequat. Duis aute irure dolor in reprehenderit in voluptate velit esse cillum dolore eu fugiat nulla pariatur. Excepteur sint occaecat cupidatat non proident, sunt in culpa qui officia deserunt mollit anim id est laborum."</p>
+    <p>"Lorem ipsum dolor sit amet, consectetur adipiscing elit, sed do eiusmod tempor incididunt ut labore et dolore magna aliqua. Ut enim ad minim veniam, quis nostrud exercitation ullamco laboris nisi ut aliquip ex ea commodo consequat. Duis aute irure dolor in reprehenderit in voluptate velit esse cillum dolore eu fugiat nulla pariatur. Excepteur sint occaecat cupidatat non proident, sunt in culpa qui officia deserunt mollit anim id est laborum."</p>
+    <div class="clearfix">
+      <div class="chart-float-left">
+        <div class="chart-label-row">
+          <div class="chart-year">2000 · 2021 · 2022</div>
+          <div class="chart-unit">wer %</div>
+        </div>
+        <canvas class="mini-chart" id="chart2"></canvas>
+        <div class="chart-axis-labels">
+          <span class="axis-label">0</span><span class="axis-label">25</span>
+          <span class="axis-label">50</span><span class="axis-label">75</span>
+          <span class="axis-label">100</span>
+        </div>
+      </div>
+      <p>"Lorem ipsum dolor sit amet, consectetur adipiscing elit, sed do eiusmod tempor incididunt ut labore et dolore magna aliqua. Ut enim ad minim veniam, quis nostrud exercitation ullamco laboris nisi ut aliquip ex ea commodo consequat. Duis aute irure dolor in reprehenderit in voluptate velit esse cillum dolore eu fugiat nulla pariatur."</p>
+      <p>"Lorem ipsum dolor sit amet, consectetur adipiscing elit, sed do eiusmod tempor incididunt ut labore et dolore magna aliqua. Ut enim ad minim veniam, quis nostrud exercitation ullamco laboris nisi ut aliquip ex ea commodo consequat. Duis aute irure dolor in reprehenderit in voluptate velit esse cillum dolore eu fugiat nulla pariatur."</p>
     </div>
-
-    <div class="wer-scale">
-      <div class="wer-row">
-        <div class="wer-range">0 – 15%</div>
-        <div class="wer-bar-bg"><div class="wer-fill" style="width:25%;background:#4af0c4"></div></div>
-        <div class="wer-tag-sm" style="color:#4af0c4">low bias</div>
-      </div>
-      <div class="wer-row">
-        <div class="wer-range">15 – 30%</div>
-        <div class="wer-bar-bg"><div class="wer-fill" style="width:55%;background:#ffd166"></div></div>
-        <div class="wer-tag-sm" style="color:#ffd166">medium bias</div>
-      </div>
-      <div class="wer-row">
-        <div class="wer-range">30 – 60%+</div>
-        <div class="wer-bar-bg"><div class="wer-fill" style="width:100%;background:#ff6b6b"></div></div>
-        <div class="wer-tag-sm" style="color:#ff6b6b">high bias</div>
-      </div>
-    </div>
-  </div>
-
-  <!-- TEAM -->
-  <div class="section">
-    <div class="section-label">the team</div>
-    <h2 class="section-title">who built this</h2>
-    <p>speechwrite was built at a hackathon by a team passionate about equitable AI and
-       computational linguistics. we built this in 48 hours with real data from mozilla common voice.</p>
-
-    <div class="team-grid">
-      <div class="team-card">
-        <div class="team-avatar">XS</div>
-        <div class="team-name">Xinyu Su</div>
-        <div class="team-role">Fullstack & Research</div>
-      </div>
-      <div class="team-card">
-        <div class="team-avatar">LH</div>
-        <div class="team-name">Lydia He</div>
-        <div class="team-role">Fullstack & Design</div>
-      </div>
-    </div>
-  </div>
-
-  <!-- CTA -->
-  <div class="section">
-    <div class="cta-block">
-      <div class="cta-title">try it yourself</div>
-      <div class="cta-sub">upload your audio and see where your accent lands on the globe</div>
-      <a class="cta-btn" href="/">open the globe →</a>
-    </div>
+    <p>"Lorem ipsum dolor sit amet, consectetur adipiscing elit, sed do eiusmod tempor incididunt ut labore et dolore magna aliqua. Ut enim ad minim veniam, quis nostrud exercitation ullamco laboris nisi ut aliquip ex ea commodo consequat. Duis aute irure dolor in reprehenderit in voluptate velit esse cillum dolore eu fugiat nulla pariatur. Excepteur sint occaecat cupidatat non proident, sunt in culpa qui officia deserunt mollit anim id est laborum."</p>
+    <p>"Lorem ipsum dolor sit amet, consectetur adipiscing elit, sed do eiusmod tempor incididunt ut labore et dolore magna aliqua. Ut enim ad minim veniam, quis nostrud exercitation ullamco laboris nisi ut aliquip ex ea commodo consequat. Duis aute irure dolor in reprehenderit in voluptate velit esse cillum dolore eu fugiat nulla pariatur. Excepteur sint occaecat cupidatat non proident, sunt in culpa qui officia deserunt mollit anim id est laborum."</p>
   </div>
 
 </main>
 
-<footer>
-  <span>© 2026 speechwrite</span>
-  <span>built with mozilla common voice · openai whisper · three.js · globe.gl</span>
-  <a href="/">back to globe</a>
-</footer>
-
 <script>
-/* STARFIELD — same as index */
-(function () {
-  const cv = document.getElementById('starfield');
-  const cx = cv.getContext('2d');
-  let W, H, stars = [];
-  function resize() { W = cv.width = innerWidth; H = cv.height = innerHeight; }
-  function mkStar() {
-    return {
-      x: Math.random()*W, y: Math.random()*H,
-      r: Math.random()*1.2+0.1,
-      o: Math.random()*0.6+0.08,
-      sp: Math.random()*0.3+0.04,
-      ph: Math.random()*Math.PI*2,
-      col: Math.random()>.97?'#4af0c4':Math.random()>.94?'#ffd166':'#ffffff'
-    };
+// ─── SCATTER CHARTS ──────────────────────────────────────────────────────────
+// drawn on canvas with DPR scaling so they're sharp on retina
+// placeholder data — swap with real WER data when available
+// called on load and resize to handle layout changes
+
+const ACCENTS=['Figma','Santos','LO','Goo/GWA','FaGop','Canva','Vectisce','Affinity','Manor','Figma2'];
+// three series = three years (2000, 2021, 2022)
+const DOT_COLORS=['#1188F7','#7ACCFF','#FFE19E'];
+const LINE_COLORS=['rgba(17,136,247,0.55)','rgba(122,204,255,0.45)','rgba(255,225,158,0.4)'];
+
+function drawScatterChart(id){
+  const canvas=document.getElementById(id);if(!canvas)return;
+  const rect=canvas.getBoundingClientRect(),dpr=window.devicePixelRatio||1;
+  // set physical pixel size, scale context to match
+  canvas.width=rect.width*dpr;canvas.height=rect.height*dpr;
+  const cx=canvas.getContext('2d');cx.scale(dpr,dpr);
+  const W=rect.width,H=rect.height;
+  const pad={top:8,right:8,bottom:14,left:60};
+  const cW=W-pad.left-pad.right,cH=H-pad.top-pad.bottom;
+  const n=ACCENTS.length;
+  // use canvas id char as a seed so chart1 and chart2 look different
+  const seed=id.charCodeAt(id.length-1);
+
+  // subtle vertical grid lines
+  for(let i=0;i<=4;i++){
+    const x=pad.left+(cW/4)*i;
+    cx.strokeStyle='rgba(17,136,247,0.08)';cx.lineWidth=1;
+    cx.beginPath();cx.moveTo(x,pad.top);cx.lineTo(x,pad.top+cH);cx.stroke();
   }
-  function init() { stars = Array.from({length:Math.floor(W*H/800)},mkStar); }
-  let t=0;
-  function draw() {
-    cx.clearRect(0,0,W,H);
-    const g=cx.createRadialGradient(W/2,H/2,0,W/2,H/2,Math.hypot(W,H)*.6);
-    g.addColorStop(0,'#060f1e'); g.addColorStop(.5,'#040b16'); g.addColorStop(1,'#03060f');
-    cx.fillStyle=g; cx.fillRect(0,0,W,H);
-    t+=.005;
-    for(const s of stars){
-      cx.globalAlpha=s.o*(0.45+0.55*Math.sin(t*s.sp+s.ph));
-      cx.beginPath(); cx.arc(s.x,s.y,s.r,0,Math.PI*2);
-      cx.fillStyle=s.col; cx.fill();
+
+  // y-axis accent labels
+  cx.font=`7.5px 'Microsoft Sans Serif',sans-serif`;
+  cx.fillStyle='rgba(122,204,255,0.3)';cx.textAlign='right';
+  for(let i=0;i<n;i++){
+    const y=pad.top+(cH/(n-1))*i;
+    cx.fillText(ACCENTS[i],pad.left-5,y+3);
+  }
+
+  // draw each of the three series
+  [0,1,2].forEach(si=>{
+    const pts=[];
+    for(let i=0;i<n;i++){
+      const y=pad.top+(cH/(n-1))*i;
+      // deterministic x position from a simple hash of i, si, seed
+      const hash=((i*31+si*7+seed*3)*1013)&0xffff;
+      const x=pad.left+(0.05+(hash/0xffff)*0.88)*cW;
+      pts.push([x,y]);
+      // glow halo behind dot
+      const grad=cx.createRadialGradient(x,y,0,x,y,6);
+      grad.addColorStop(0,DOT_COLORS[si]);grad.addColorStop(1,'transparent');
+      cx.fillStyle=grad;cx.beginPath();cx.arc(x,y,6,0,Math.PI*2);cx.fill();
+      // solid dot core
+      cx.fillStyle=DOT_COLORS[si];cx.globalAlpha=0.85;
+      cx.beginPath();cx.arc(x,y,2.2,0,Math.PI*2);cx.fill();cx.globalAlpha=1;
     }
-    cx.globalAlpha=1;
-    requestAnimationFrame(draw);
-  }
-  resize(); init(); draw();
-  addEventListener('resize',()=>{resize();init();});
-})();
+    // smooth bezier trend line through points sorted by y position
+    const sorted=[...pts].sort((a,b)=>a[1]-b[1]);
+    cx.strokeStyle=LINE_COLORS[si];cx.lineWidth=0.9;cx.beginPath();
+    cx.moveTo(sorted[0][0],sorted[0][1]);
+    for(let i=1;i<sorted.length;i++){
+      const p=sorted[i-1],c=sorted[i],cpx=(p[0]+c[0])/2;
+      cx.bezierCurveTo(cpx,p[1],cpx,c[1],c[0],c[1]);
+    }
+    cx.stroke();
+  });
+}
+
+// draw on load and redraw on resize so canvases stay sharp
+window.addEventListener('load',()=>{drawScatterChart('chart1');drawScatterChart('chart2');});
+window.addEventListener('resize',()=>{drawScatterChart('chart1');drawScatterChart('chart2');});
 </script>
 </body>
 </html>
