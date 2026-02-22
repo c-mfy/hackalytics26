@@ -36,7 +36,7 @@
     .hero-bg {
       position:absolute; inset:0;
       background: radial-gradient(ellipse 120% 100% at 50% 110%, #0a2847 0%, #051428 40%, #010e1f 70%);
-      animation: heroPulse 10s ease-in-out infinite alternate;
+      animation: heroPulse 20s ease-in-out infinite alternate;
     }
     @keyframes heroPulse {
       0%   { background: radial-gradient(ellipse 120% 100% at 40% 110%, #0d3060 0%, #061830 40%, #010e1f 70%); }
@@ -71,7 +71,7 @@
     /* ghost title — intentionally semi-transparent, gradient text */
     .hero-title {
       font-size:clamp(48px,9vw,118px); font-weight:700; letter-spacing:0.01em; line-height:0.9;
-      background: linear-gradient(160deg, rgba(235,241,255,0.3) 0%, rgba(122,204,255,0.2) 50%, rgba(17,136,247,0.15) 100%);
+      background: linear-gradient(160deg, rgba(242, 246, 255, 0.3) 0%, rgba(149, 215, 255, 0.2) 50%, rgba(17,136,247,0.15) 100%);
       -webkit-background-clip:text; -webkit-text-fill-color:transparent;
     }
 
@@ -198,13 +198,19 @@
 </div>
 
 <main>
+  <div class="hero-content" style="text-align:center;">
+  <div class="hero-title" style="font-size:2rem; background: linear-gradient(90deg, rgba(17,136,247,0.6) 0%, rgba(122,204,255,0.5) 100%); -webkit-background-clip:text; -webkit-text-fill-color:transparent;">Research</div>
+  <br>
+  <br><br>
+</div>
 
   <!-- audience section -->
   <div class="section">
     <h2 class="section-heading"><span class="hl">audi</span><span class="dm">ence</span></h2>
-    <p>Speech recognition is a core deliverable in the entertainment industry. Game studios embed real-time transcription into dialogue systems and accessibility overlays. Streaming platforms rely on auto-generated captions to meet compliance requirements. Interactive experiences in games, movies, and theme parks depend on whether the model can accurately parse what a speaker said.</p>
-    <p>These pipelines were rarely designed with accent diversity in mind. A caption engine trained on American English will struggle with Australian English vowel shifts, Indian English retroflex consonants, or South African English rhythm, producing errors that mislead audiences. The same problem appears in university lecture recordings, where a professor's regional accent combined with domain-specific terminology defeats off-the-shelf transcription services.</p>
-    <p>SpeechWrite targets the teams who build and QA these systems. We surface which phonemes a model consistently mishears, broken down by accent, giving engineers a map of where their pipeline is biased. Teams can use this to prioritize retraining data, adjust confidence thresholds, or flag segments for human review.</p>
+    <p>Speech recognition applies to nearly every form of video or audio products in the entertainment industry.
+      Game studios embed real-time transcription into dialogue systems and accessibility overlays. Streaming platforms rely on auto-generated captions to meet compliance requirements.</p>
+    <p>These pipelines were rarely designed with accent diversity in mind. A caption engine trained on American English could struggle with Australian English vowel shifts, Indian English retroflex consonants, or South African English rhythm, producing errors that mislead audiences. The same problem appears in university lecture recordings, where a professor's regional accent combined with subject-specific terminology defeats results in mistranscription.</p>
+    <p>SpeechWrite targets teams who build and train these systems. We detect which phonemes a model consistently mishears, broken down by accent, giving engineers a map of where their pipeline is biased. Teams can use this to prioritize retraining data, adjust confidence thresholds, or flag segments for human review.</p>
   </div>
 
   <hr class="section-divider" />
@@ -212,11 +218,11 @@
   <!-- methodology section -->
   <div class="section">
     <h2 class="section-heading"><span class="hl">meth</span><span class="dm">odology</span></h2>
-    <p>Speech-to-text systems convert audio into words by first decomposing speech into phonemes, the smallest meaningful sound units. English uses 39 canonical phonemes covering all vowel and consonant classes. A model maps acoustic features from the waveform onto these units and assembles probable word sequences. The accuracy of that mapping across different accents is what SpeechWrite measures.</p>
-    <p>Our audio corpus comes from Mozilla's Common Voice dataset, an open-source collection of crowd-sourced English recordings. We selected clips from five accent groups: American English (ae), Australian English (au), Canadian English (ca), Indian English (in), and South African English (sa). Each clip includes a validated human transcript that serves as the ground truth reference.</p>
-    <p>To transcribe each clip we use OpenAI's Whisper model via the GPT-4o-mini transcription API. Whisper represents the class of large-scale models that game studios, streaming platforms, and lecture capture services typically evaluate or deploy. Running the same audio through Whisper five times and averaging the error scores gives a stable per-clip Word Error Rate before phoneme-level analysis.</p>
-    <p>Once we have the reference transcript and the Whisper prediction, we convert each to its phoneme sequence using the Python Pronouncing library, which maps English words to ARPAbet representations across the 39-phoneme inventory. We align the two sequences and classify each position as equal (correct), substitute (wrong phoneme), or delete (phoneme in reference but missing from prediction). Insertions are excluded because Whisper occasionally hallucinates tokens with no counterpart in the source audio, and counting those would conflate over-generation with accent-driven misrecognition.</p>
-    <p>Each substitution and deletion is recorded against the specific phoneme missed and tagged with the speaker's accent group, building a phoneme-level error frequency table that drives the SpeechWrite dashboard.</p>
+    <p>Speech-to-text systems convert audio into words by first decomposing speech into phonemes, the smallest meaningful sound units. Fast Fourier  is used to map sound waves into measurable phonemes. Then, Hidden Markov Models take those phonemes and assemble correct word sequences. The accuracy of that mapping across different accents is what SpeechWrite measures.</p>
+    <p>For this project, we utilized Mozilla's Common Voice dataset, an open-source collection of crowd-sourced English recordings. We selected clips from five accent groups: American English (en), Australian English (au), Canadian English (ca), Indian English (in), and South African English (sa). Each clip includes a validated human transcript that serves as the ground truth reference.</p>
+    <p>To transcribe each clip we use OpenAI's Whisper model via the GPT-4o-mini transcription API. Whisper represents one of today's most advanced class of speech recognition models that game studios, streaming platforms, and lecture capture services typically deploy. Running the same audio through Whisper five times and averaging the error scores gives a relatively accurate Word Error Rate before analyzing the specific phonemes.</p>
+    <p>Once we have the reference transcript and the Whisper prediction, we convert each to its phoneme sequence using the CMU Pronouncing Dictionary, which maps English words to ARPAbet representations across the 39-phoneme inventory. We compare the two and classify each position as equal (correct), substitute (wrong phoneme), or delete (phoneme in reference but missing from prediction). Insertions are excluded because Whisper occasionally hallucinates words with no counterpart in the source audio, and counting those could mistake extra words with misrecognition.</p>
+    <p>Each substitution and deletion is recorded against the specific phoneme missed and tagged with the speaker's accent group, building a phoneme-level error frequency table that allows SpeechWrite to identify exactly where recognition systems struggle at the phonetic level.</p>
   </div>
 
   <hr class="section-divider" />
@@ -226,112 +232,7 @@
     <h2 class="section-heading"><span class="hl">calcu</span><span class="dm">lations</span></h2>
     <p>The backbone of speech recognition is the Hidden Markov Model. Each phoneme is a hidden state, not directly observable from the audio, while acoustic features of the waveform are the observable emissions. The model learns transition probabilities between phoneme states and emission probabilities linking acoustic frames to phoneme identities. Inference finds the most likely phoneme sequence given the observed audio, which is why accent-driven acoustic variation causes it to select the wrong state.</p>
 
-    <!-- HMM diagram -->
-    <div class="hmm-wrap">
-      <div class="hmm-title">Hidden Markov Model: phoneme state transitions</div>
-      <svg class="hmm-svg" viewBox="0 0 680 260" xmlns="http://www.w3.org/2000/svg" font-family="'Microsoft Sans Serif',sans-serif">
-        <defs>
-          <marker id="arr" markerWidth="8" markerHeight="8" refX="7" refY="3" orient="auto">
-            <path d="M0,0 L0,6 L8,3 z" fill="rgba(17,136,247,0.7)"/>
-          </marker>
-          <marker id="arr-emit" markerWidth="8" markerHeight="8" refX="7" refY="3" orient="auto">
-            <path d="M0,0 L0,6 L8,3 z" fill="rgba(122,204,255,0.5)"/>
-          </marker>
-          <radialGradient id="stateGrad" cx="50%" cy="35%" r="60%">
-            <stop offset="0%" stop-color="rgba(17,136,247,0.28)"/>
-            <stop offset="100%" stop-color="rgba(1,20,42,0.9)"/>
-          </radialGradient>
-          <radialGradient id="obsGrad" cx="50%" cy="35%" r="60%">
-            <stop offset="0%" stop-color="rgba(122,204,255,0.18)"/>
-            <stop offset="100%" stop-color="rgba(1,14,31,0.9)"/>
-          </obsGrad>
-          <filter id="glow">
-            <feGaussianBlur stdDeviation="3" result="blur"/>
-            <feMerge><feMergeNode in="blur"/><feMergeNode in="SourceGraphic"/></feMerge>
-          </filter>
-        </defs>
-
-        <!-- ── HIDDEN LAYER label ── -->
-        <text x="14" y="105" font-size="8" fill="rgba(122,204,255,0.35)" letter-spacing="2" text-anchor="start">HIDDEN STATES</text>
-        <!-- ── OBSERVABLE LAYER label ── -->
-        <text x="14" y="220" font-size="8" fill="rgba(122,204,255,0.25)" letter-spacing="2" text-anchor="start">OBSERVATIONS</text>
-
-        <!-- ── state circles ── cx positions: 160, 300, 440, 580 ── -->
-        <!-- State 1: /AH/ -->
-        <circle cx="160" cy="108" r="38" fill="url(#stateGrad)" stroke="rgba(17,136,247,0.55)" stroke-width="1.5" filter="url(#glow)"/>
-        <text x="160" y="103" text-anchor="middle" font-size="13" font-weight="700" fill="#7ACCFF">/AH/</text>
-        <text x="160" y="119" text-anchor="middle" font-size="8" fill="rgba(235,241,255,0.4)">schwa</text>
-
-        <!-- State 2: /T/ -->
-        <circle cx="300" cy="108" r="38" fill="url(#stateGrad)" stroke="rgba(17,136,247,0.55)" stroke-width="1.5" filter="url(#glow)"/>
-        <text x="300" y="103" text-anchor="middle" font-size="13" font-weight="700" fill="#7ACCFF">/T/</text>
-        <text x="300" y="119" text-anchor="middle" font-size="8" fill="rgba(235,241,255,0.4)">stop</text>
-
-        <!-- State 3: /IH/ -->
-        <circle cx="440" cy="108" r="38" fill="url(#stateGrad)" stroke="rgba(17,136,247,0.55)" stroke-width="1.5" filter="url(#glow)"/>
-        <text x="440" y="103" text-anchor="middle" font-size="13" font-weight="700" fill="#7ACCFF">/IH/</text>
-        <text x="440" y="119" text-anchor="middle" font-size="8" fill="rgba(235,241,255,0.4)">short-i</text>
-
-        <!-- State 4: /N/ -->
-        <circle cx="580" cy="108" r="38" fill="url(#stateGrad)" stroke="rgba(17,136,247,0.55)" stroke-width="1.5" filter="url(#glow)"/>
-        <text x="580" y="103" text-anchor="middle" font-size="13" font-weight="700" fill="#7ACCFF">/N/</text>
-        <text x="580" y="119" text-anchor="middle" font-size="8" fill="rgba(235,241,255,0.4)">nasal</text>
-
-        <!-- ── transition arrows between states ── -->
-        <!-- 1→2 -->
-        <line x1="199" y1="104" x2="260" y2="104" stroke="rgba(17,136,247,0.65)" stroke-width="1.4" marker-end="url(#arr)"/>
-        <text x="229" y="96" text-anchor="middle" font-size="8.5" font-weight="700" fill="rgba(255,225,158,0.85)">a₁₂</text>
-
-        <!-- 2→3 -->
-        <line x1="339" y1="104" x2="400" y2="104" stroke="rgba(17,136,247,0.65)" stroke-width="1.4" marker-end="url(#arr)"/>
-        <text x="369" y="96" text-anchor="middle" font-size="8.5" font-weight="700" fill="rgba(255,225,158,0.85)">a₂₃</text>
-
-        <!-- 3→4 -->
-        <line x1="479" y1="104" x2="540" y2="104" stroke="rgba(17,136,247,0.65)" stroke-width="1.4" marker-end="url(#arr)"/>
-        <text x="509" y="96" text-anchor="middle" font-size="8.5" font-weight="700" fill="rgba(255,225,158,0.85)">a₃₄</text>
-
-        <!-- self-loops -->
-        <path d="M148,71 C132,42 188,42 172,71" fill="none" stroke="rgba(17,136,247,0.4)" stroke-width="1.2" marker-end="url(#arr)"/>
-        <path d="M288,71 C272,42 328,42 312,71" fill="none" stroke="rgba(17,136,247,0.4)" stroke-width="1.2" marker-end="url(#arr)"/>
-        <path d="M428,71 C412,42 468,42 452,71" fill="none" stroke="rgba(17,136,247,0.4)" stroke-width="1.2" marker-end="url(#arr)"/>
-        <path d="M568,71 C552,42 608,42 592,71" fill="none" stroke="rgba(17,136,247,0.4)" stroke-width="1.2" marker-end="url(#arr)"/>
-        <text x="160" y="37" text-anchor="middle" font-size="7.5" fill="rgba(255,225,158,0.55)">aᵢᵢ</text>
-        <text x="300" y="37" text-anchor="middle" font-size="7.5" fill="rgba(255,225,158,0.55)">aᵢᵢ</text>
-        <text x="440" y="37" text-anchor="middle" font-size="7.5" fill="rgba(255,225,158,0.55)">aᵢᵢ</text>
-        <text x="580" y="37" text-anchor="middle" font-size="7.5" fill="rgba(255,225,158,0.55)">aᵢᵢ</text>
-
-        <!-- ── emission arrows ── -->
-        <line x1="160" y1="147" x2="160" y2="198" stroke="rgba(122,204,255,0.45)" stroke-width="1.2" stroke-dasharray="4,3" marker-end="url(#arr-emit)"/>
-        <line x1="300" y1="147" x2="300" y2="198" stroke="rgba(122,204,255,0.45)" stroke-width="1.2" stroke-dasharray="4,3" marker-end="url(#arr-emit)"/>
-        <line x1="440" y1="147" x2="440" y2="198" stroke="rgba(122,204,255,0.45)" stroke-width="1.2" stroke-dasharray="4,3" marker-end="url(#arr-emit)"/>
-        <line x1="580" y1="147" x2="580" y2="198" stroke="rgba(122,204,255,0.45)" stroke-width="1.2" stroke-dasharray="4,3" marker-end="url(#arr-emit)"/>
-        <text x="148" y="176" font-size="7.5" fill="rgba(122,204,255,0.5)">b(oₜ)</text>
-        <text x="288" y="176" font-size="7.5" fill="rgba(122,204,255,0.5)">b(oₜ)</text>
-        <text x="428" y="176" font-size="7.5" fill="rgba(122,204,255,0.5)">b(oₜ)</text>
-        <text x="568" y="176" font-size="7.5" fill="rgba(122,204,255,0.5)">b(oₜ)</text>
-
-        <!-- ── observation nodes ── -->
-        <rect x="122" y="200" width="76" height="28" rx="6" fill="rgba(122,204,255,0.07)" stroke="rgba(122,204,255,0.25)" stroke-width="1"/>
-        <text x="160" y="218" text-anchor="middle" font-size="9" fill="rgba(235,241,255,0.6)">acoustic frame</text>
-
-        <rect x="262" y="200" width="76" height="28" rx="6" fill="rgba(122,204,255,0.07)" stroke="rgba(122,204,255,0.25)" stroke-width="1"/>
-        <text x="300" y="218" text-anchor="middle" font-size="9" fill="rgba(235,241,255,0.6)">acoustic frame</text>
-
-        <rect x="402" y="200" width="76" height="28" rx="6" fill="rgba(122,204,255,0.07)" stroke="rgba(122,204,255,0.25)" stroke-width="1"/>
-        <text x="440" y="218" text-anchor="middle" font-size="9" fill="rgba(235,241,255,0.6)">acoustic frame</text>
-
-        <rect x="542" y="200" width="76" height="28" rx="6" fill="rgba(122,204,255,0.07)" stroke="rgba(122,204,255,0.25)" stroke-width="1"/>
-        <text x="580" y="218" text-anchor="middle" font-size="9" fill="rgba(235,241,255,0.6)">acoustic frame</text>
-
-        <!-- legend -->
-        <line x1="20" y1="248" x2="44" y2="248" stroke="rgba(17,136,247,0.7)" stroke-width="1.4" marker-end="url(#arr)"/>
-        <text x="48" y="252" font-size="8" fill="rgba(235,241,255,0.38)">transition prob aᵢⱼ</text>
-        <line x1="160" y1="248" x2="184" y2="248" stroke="rgba(122,204,255,0.5)" stroke-width="1.2" stroke-dasharray="4,3" marker-end="url(#arr-emit)"/>
-        <text x="188" y="252" font-size="8" fill="rgba(235,241,255,0.38)">emission prob b(oₜ)</text>
-        <circle cx="330" cy="248" r="5" fill="none" stroke="rgba(17,136,247,0.55)" stroke-width="1.5"/>
-        <text x="340" y="252" font-size="8" fill="rgba(235,241,255,0.38)">hidden phoneme state</text>
-      </svg>
-    </div>
+    
 
     <p>Word Error Rate measures transcription quality using minimum edit distance (Levenshtein distance) between the reference and hypothesis, counting substitutions, deletions, and insertions, normalized by total reference tokens. SpeechWrite applies this at the phoneme level rather than the word level, giving granular signal about which specific sounds drive errors.</p>
 

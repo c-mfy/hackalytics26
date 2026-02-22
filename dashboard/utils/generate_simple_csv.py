@@ -45,7 +45,7 @@ def create_simple_csv(input_csv="data/transcripts.tsv",
     for accent in accent_list:
         for f in os.listdir(audio_dir + accent):
             file_map[f] = os.path.join(accent, f)
-    print(list(file_map.values()))
+    # print(list(file_map.values()))
 
     full_dataframe["accent_code"] = full_dataframe["accents"].apply(normalize_accent)
     subset = full_dataframe[
