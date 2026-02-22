@@ -15,7 +15,7 @@ ACCENT_MAP = {
     "australian": "au",
     "canadian": "ce",
     "indian": "in",
-    "south african": "sa",
+    "south africa": "sa",
 }
 
 def normalize_accent(raw):
