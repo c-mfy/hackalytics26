@@ -47,20 +47,21 @@ async def getResults():
     except FileNotFoundError:
         return JSONResponse(content={"error": "simple_transcripts.csv not found"}, status_code = 404)
     
-@app.post("/evaluate")
-def evaluate_accents(req: EvaluationRequest):
-    results = transcribe_samples(CSV_FILE, AUDIO_DIR, req.accents, SAMPLE_LIMIT)
+import json
+import math
 
-    if not results:
-        return JSONResponse(content={"error": "No results, check CSV or audio files"}, status_code=404)
-
-    df_results = pd.DataFrame(results)
-    summary = df_results.groupby("accent")["wer"].mean().to_dict()
-
-    return {
-        "summary": summary,
-        "results": results
-    }
+@app.get("/results")
+async def getResults():
+    try:
+        dataframe = pd.read_csv("data/simple_transcripts.csv")
+        data = dataframe.to_dict(orient="records")
+        # replace any NaN/inf that slipped through with None
+        clean = json.loads(
+            json.dumps(data, default=lambda x: None if (isinstance(x, float) and not math.isfinite(x)) else x)
+        )
+        return JSONResponse(content=clean)
+    except FileNotFoundError:
+        return JSONResponse(content={"error": "simple_transcripts.csv not found"}, status_code=404)
 
 @app.get("/research")                       
 async def research():

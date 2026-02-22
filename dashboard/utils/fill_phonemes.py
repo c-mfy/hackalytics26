@@ -12,7 +12,8 @@ def clean(text):
 
 #map full accent string to abbreiviations in phoneme counter
 ACCENT_MAP = {
-    "american english": "ae",
+    "american english": "en",
+    "united states english": "en",
     "australian english": "au",
     "canadian english": "ce",
     "indian english": "in",
@@ -36,7 +37,7 @@ def update_phoneme_counts(
     df_phoneme = pd.read_csv(phoneme_csv).set_index("phoneme")
 
     # reset all counts to 0 before recomputing
-    accent_cols = ["ae","aee","au","aue","ce","cee","in","ine","sa","sae"]
+    accent_cols = ["en","ene","au","aue","ce","cee","in","ine","sa","sae"]
     df_phoneme[accent_cols] = 0
 
     df_trans["accent_code"] = df_trans["accents"].fillna("").apply(normalize_accent)
